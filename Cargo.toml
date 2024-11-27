@@ -10,7 +10,7 @@ crate-type = ["cdylib"]
 [dependencies]
 ark-serialize = { version = "0.4.0", features = [ "derive" ], default-features = false }
 codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive", "max-encoded-len"] }
-hex = { version = "0.4", default-features = false }
+hex = { version = "0.4", default-features = false, features = ["alloc"] }
 pyo3 = { version = "0.22.4", features = ["gil-refs"] }
 rand = "0.8.5"
 rand_chacha = "0.3.1"

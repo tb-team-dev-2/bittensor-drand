@@ -116,7 +116,7 @@ async fn generate_commit(
     };
     let identity = Identity::new(b"", vec![message]);
 
-    // 5. Encryption
+    // 5. Encryption via tle with tlock under the hood
     let rng = ChaCha20Rng::seed_from_u64(0);
     let esk = [2; 32];
     let ct = tle::<TinyBLS381, AESGCMStreamCipherProvider, ChaCha20Rng>(
@@ -133,7 +133,9 @@ async fn generate_commit(
     ct.serialize_compressed(&mut compressed).unwrap();
 
     // 7. Return result
+    // println!("hexed commit: {:?}", Vec::from(hex::encode(compressed.clone())));
     Ok((compressed, reveal_round))
+
 }
 
 #[pyfunction]
