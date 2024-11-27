@@ -1,4 +1,3 @@
-use tlock::client::Network;
 use w3f_bls::EngineBLS;
 
 use tle::{
@@ -21,7 +20,27 @@ use pyo3::types::PyBytes;
 use serde::{Deserialize, Serialize};
 
 use codec::Encode;
+use reqwest::Client;
 use tokio;
+
+#[derive(Debug, Deserialize)]
+struct DrandInfo {
+    public_key: String,
+    period: u64,
+    genesis_time: u64,
+    // hash: String,
+    // #[serde(rename = "groupHash")]
+    // group_hash: String,
+    // #[serde(rename = "schemeID")]
+    // scheme_id: String,
+    // metadata: Metadata,
+}
+
+// #[derive(Debug, Deserialize)]
+// struct Metadata {
+//     #[serde(rename = "beaconID")]
+//     beacon_id: String,
+// }
 
 #[derive(Encode)]
 pub struct WeightsTlockPayload {
@@ -36,6 +55,19 @@ struct SerializableCiphertext {
     u: Vec<u8>,
     v: Vec<u8>,
     w: Vec<u8>,
+}
+
+async fn fetch_drand_info(api_url: &str) -> Result<DrandInfo, (std::io::Error, String)> {
+    let client = Client::new();
+    let response = client
+        .get(api_url)
+        .send()
+        .await
+        .unwrap()
+        .json::<DrandInfo>()
+        .await
+        .unwrap();
+    Ok(response)
 }
 
 async fn generate_commit(
@@ -55,15 +87,12 @@ async fn generate_commit(
     // 2 Serialize payload
     let serialized_payload = payload.encode();
 
-    // Calculate reveal_round
-    let client = Network::new(
-        "https://api.drand.sh",
-        "52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971",
-    )
-    .unwrap();
-    let info = client.info().await.unwrap();
+    // fetching drand data (quicknet)
+    let url = "https://api.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/info";
+    let info = fetch_drand_info(url).await?;
 
-    let period = info.period.as_secs();
+    // Calculate reveal_round
+    let period = info.period;
     let genesis_time = info.genesis_time;
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -75,7 +104,7 @@ async fn generate_commit(
     let reveal_round = current_round + rounds_to_wait;
 
     // 3 Encrypt
-    let pub_key_bytes = hex::decode(info.public_key.to_compressed()).expect("Decoding failed");
+    let pub_key_bytes = hex::decode(info.public_key).expect("Decoding failed");
     let pub_key =
         <TinyBLS381 as EngineBLS>::PublicKeyGroup::deserialize_compressed(&*pub_key_bytes).unwrap();
 
@@ -108,7 +137,6 @@ async fn generate_commit(
 }
 
 #[pyfunction]
-
 fn get_encrypted_commit(
     py: Python,
     uids: Vec<u16>,
