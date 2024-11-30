@@ -1,4 +1,41 @@
-run in terminal
+# Usage
+Python package `bittensor_commit_reveal` has one function.
+
+```python
+from bittensor_commit_reveal import get_encrypted_commit
+```
+
+## Function docstring
+The function could be considered like this:
+```python
+def get_encrypted_commit(
+        uids: Union[NDArray[np.int64], "torch.LongTensor"], 
+        weights: Union[NDArray[np.float32], "torch.FloatTensor"], 
+        version_key: int, 
+        subnet_reveal_period_epochs: int = 1, 
+        block_time: int = 12, 
+        tempo: int = 360
+) -> tuple[bytes, int]:
+"""Returns encrypted commit and target round for `commit_crv3_weights` extrinsic.
+
+    Arguments:
+        uids: The uids to commit.
+        weights: The weights associated with the uids.
+        version_key: The version key to use for committing and revealing. Default is `bittensor.core.settings.version_as_int`.
+        subnet_reveal_period_epochs: Number of epochs after which the revive will be performed. Corresponds to hyperparameter 'commit_reveal_weights_interval' of the subnet. In epochs.
+        block_time: Amount if seconds in one block. In seconds.
+        tempo: Amount of blocks in one Epoch.
+        
+    Returns:
+        commit (bites): hex value of encrypted and compressed uids and weights values for setting weights.
+        target_round (int): Drand round number when weights have to be revealed. Based on Drand Quicknet network.
+"""
+# function logic
+return commit, target_round
+```
+
+
+To test the function run in terminal:
 ```bash
 mkdir test
 cd test
@@ -12,16 +49,15 @@ ipython
 
 ```
 
-copy-past to ipython
+then copy-past to ipython
 ```python
 import numpy as np
-import bittensor_commit_reveal as cr
+import bittensor_commit_reveal as crv3
 from bittensor.utils.weight_utils import convert_weights_and_uids_for_emit
 
 uids = [1, 3]
 weights = [0.3, 0.7]
 version_key = 843000
-subnet_reveal_period_epochs = 1
 
 if isinstance(uids, list):
     uids = np.array(uids, dtype=np.int64)
@@ -30,7 +66,7 @@ if isinstance(weights, list):
 
 uids, weights = convert_weights_and_uids_for_emit(uids, weights)
 
-print(cr.get_encrypted_commit(uids, weights, version_key, subnet_reveal_period_epochs))
+print(crv3.get_encrypted_commit(uids, weights, version_key))
 ```
 expected result
 ```python
