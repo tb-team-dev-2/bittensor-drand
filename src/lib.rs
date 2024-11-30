@@ -95,7 +95,7 @@ async fn generate_commit(
 }
 
 #[pyfunction]
-#[pyo3(signature = (uids, weights, version_key, subnet_reveal_period_epochs, block_time=12, tempo=360))]
+#[pyo3(signature = (uids, weights, version_key, subnet_reveal_period_epochs=1, block_time=12, tempo=360))]
 fn get_encrypted_commit(
     py: Python,
     uids: Vec<u16>,
