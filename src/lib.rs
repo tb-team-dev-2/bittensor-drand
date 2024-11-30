@@ -1,46 +1,17 @@
-use w3f_bls::EngineBLS;
-
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
+use codec::Encode;
+use pyo3::exceptions::PyValueError;
+use pyo3::prelude::*;
+use pyo3::types::PyBytes;
+use rand_core::OsRng;
+use sha2::Digest;
+use std::time::{SystemTime, UNIX_EPOCH};
 use tle::{
     curves::drand::TinyBLS381, ibe::fullident::Identity,
     stream_ciphers::AESGCMStreamCipherProvider, tlock::tle,
 };
-
-use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
-
-use rand::SeedableRng;
-use rand_chacha::ChaCha20Rng;
-use sha2::{Digest, Sha256};
-
-use std::time::{SystemTime, UNIX_EPOCH};
-
-use pyo3::exceptions::PyValueError;
-use pyo3::prelude::*;
-use pyo3::types::PyBytes;
-
-use serde::{Deserialize, Serialize};
-
-use codec::Encode;
-use reqwest::Client;
 use tokio;
-
-#[derive(Debug, Deserialize)]
-struct DrandInfo {
-    public_key: String,
-    period: u64,
-    genesis_time: u64,
-    // hash: String,
-    // #[serde(rename = "groupHash")]
-    // group_hash: String,
-    // #[serde(rename = "schemeID")]
-    // scheme_id: String,
-    // metadata: Metadata,
-}
-
-// #[derive(Debug, Deserialize)]
-// struct Metadata {
-//     #[serde(rename = "beaconID")]
-//     beacon_id: String,
-// }
+use w3f_bls::EngineBLS;
 
 #[derive(Encode)]
 pub struct WeightsTlockPayload {
@@ -49,32 +20,13 @@ pub struct WeightsTlockPayload {
     pub version_key: u64,
 }
 
-#[derive(Serialize, Deserialize)]
-struct SerializableCiphertext {
-    round: u64,
-    u: Vec<u8>,
-    v: Vec<u8>,
-    w: Vec<u8>,
-}
-
-async fn fetch_drand_info(api_url: &str) -> Result<DrandInfo, (std::io::Error, String)> {
-    let client = Client::new();
-    let response = client
-        .get(api_url)
-        .send()
-        .await
-        .unwrap()
-        .json::<DrandInfo>()
-        .await
-        .unwrap();
-    Ok(response)
-}
-
 async fn generate_commit(
     uids: Vec<u16>,
     values: Vec<u16>,
     version_key: u64,
     subnet_reveal_period_epochs: u64,
+    block_time: u64,
+    tempo: u64,
 ) -> Result<(Vec<u8>, u64), (std::io::Error, String)> {
     // Steps comes from here https://github.com/opentensor/subtensor/pull/982/files#diff-7261bf1c7f19fc66a74c1c644ec2b4b277a341609710132fb9cd5f622350a6f5R120-R131
     // 1 Instantiate payload
@@ -87,64 +39,71 @@ async fn generate_commit(
     // 2 Serialize payload
     let serialized_payload = payload.encode();
 
-    // fetching drand data (quicknet)
-    let url = "https://api.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/info";
-    let info = fetch_drand_info(url).await?;
-
     // Calculate reveal_round
-    let period = info.period;
-    let genesis_time = info.genesis_time;
+    // all of 3 variables are constants for drand quicknet
+    let period = 3;
+    let genesis_time = 1689232296;
+    let public_key = "83cf0f2896adee7eb8b5f01fcad3912212c437e0073e911fb90022d3e760183c8c4b450b6a0a6c3ac6a5776a2d1064510d1fec758c921cc22b0e17e63aaf4bcb5ed66304de9cf809bd274ca73bab4af5a6e9c76a4bc09e76eae8991ef5ece45a";
+
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_secs();
-    let current_round = ((now - genesis_time) / period) + 1;
-    let delay_seconds = 360 * 12 * subnet_reveal_period_epochs;
+
+    let current_round = (now - genesis_time) / period;
+    // tempo is amount of blocks in 1 epoch
+    // block_time is length the block in seconds
+    // subnet_reveal_period_epochs means after how many epochs to make a commit reveal
+    let delay_seconds = tempo * block_time * subnet_reveal_period_epochs;
     let rounds_to_wait = (delay_seconds + period - 1) / period;
     let reveal_round = current_round + rounds_to_wait;
 
     // 3 Encrypt
-    let pub_key_bytes = hex::decode(info.public_key).expect("Decoding failed");
+    let pub_key_bytes = hex::decode(public_key).expect("Decoding failed");
     let pub_key =
         <TinyBLS381 as EngineBLS>::PublicKeyGroup::deserialize_compressed(&*pub_key_bytes).unwrap();
 
     // 4 Create identity
     let message = {
-        let mut hasher = Sha256::new();
+        let mut hasher = sha2::Sha256::new();
         hasher.update(reveal_round.to_be_bytes());
         hasher.finalize().to_vec()
     };
     let identity = Identity::new(b"", vec![message]);
 
-    // 5. Encryption via tle with tlock under the hood
-    let rng = ChaCha20Rng::seed_from_u64(0);
+    // 5. Encryption via tle with t-lock under the hood
     let esk = [2; 32];
-    let ct = tle::<TinyBLS381, AESGCMStreamCipherProvider, ChaCha20Rng>(
+    let ct = tle::<TinyBLS381, AESGCMStreamCipherProvider, OsRng>(
         pub_key,
         esk,
         &serialized_payload,
         identity,
-        rng,
+        OsRng,
     )
+    .map_err(|_| PyErr::new::<PyValueError, _>("Encryption failed."))
     .unwrap();
 
     // 6. Compress ct
-    let mut compressed = Vec::new();
-    ct.serialize_compressed(&mut compressed).unwrap();
+    let mut ct_bytes: Vec<u8> = Vec::new();
+
+    ct.serialize_compressed(&mut ct_bytes)
+        .map_err(|_| PyErr::new::<PyValueError, _>("Ciphertext serialization failed."))
+        .unwrap();
 
     // 7. Return result
-    // println!("hexed commit: {:?}", Vec::from(hex::encode(compressed.clone())));
-    Ok((compressed, reveal_round))
-
+    Ok((ct_bytes, reveal_round))
 }
 
 #[pyfunction]
+#[pyo3(signature = (uids, weights, version_key, subnet_reveal_period_epochs, block_time=12, tempo=360))]
 fn get_encrypted_commit(
     py: Python,
     uids: Vec<u16>,
     weights: Vec<u16>,
     version_key: u64,
     subnet_reveal_period_epochs: u64,
+    block_time: u64,
+    tempo: u64,
 ) -> PyResult<(Py<PyBytes>, u64)> {
     // create runtime to make async call
     let runtime =
@@ -154,6 +113,8 @@ fn get_encrypted_commit(
         weights,
         version_key,
         subnet_reveal_period_epochs,
+        block_time,
+        tempo,
     ));
     // matching the result
     match result {
