@@ -31,7 +31,7 @@ def get_encrypted_commit(
         block_time: Amount of time in seconds for one block. Defaults to 12 seconds.
 
     Returns:
-        commit (bytes): Hex value of encrypted and compressed uids and weights values for setting weights.
+        commit (bytes): Raw bytes of the encrypted, and compressed uids & weights values for setting weights.
         target_round (int): Drand round number when weights have to be revealed. Based on Drand Quicknet network.
     """
 # function logic
