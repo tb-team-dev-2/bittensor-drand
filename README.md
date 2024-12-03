@@ -168,7 +168,8 @@ def main():
 if __name__ == "__main__":
     main()
 ```
-11. Wait till your target_round comes.
+11. Wait until your target_round comes.
+
 12. Check your weights with the following code:
 
 ```python
