@@ -12,9 +12,11 @@ def get_encrypted_commit(
         uids: Union[NDArray[np.int64], "torch.LongTensor"], 
         weights: Union[NDArray[np.float32], "torch.FloatTensor"], 
         version_key: int, 
-        subnet_reveal_period_epochs: int = 1, 
-        block_time: int = 12, 
-        tempo: int = 360
+        tempo: int, 
+        current_block: int, 
+        netuid: int, 
+        subnet_reveal_period_epochs: int, 
+        block_time: int = 12
 ) -> tuple[bytes, int]:
 """Returns encrypted commit and target round for `commit_crv3_weights` extrinsic.
 
@@ -22,20 +24,24 @@ def get_encrypted_commit(
         uids: The uids to commit.
         weights: The weights associated with the uids.
         version_key: The version key to use for committing and revealing. Default is `bittensor.core.settings.version_as_int`.
-        subnet_reveal_period_epochs: Number of epochs after which the revive will be performed. Corresponds to hyperparameter 'commit_reveal_weights_interval' of the subnet. In epochs.
-        block_time: Amount if seconds in one block. In seconds.
-        tempo: Amount of blocks in one Epoch.
-        
+        tempo: Number of blocks in one epoch.
+        current_block: The current block number in the network.
+        netuid: The network unique identifier (NetUID) for the subnet.
+        subnet_reveal_period_epochs: Number of epochs after which the reveal will be performed. Corresponds to the hyperparameter `commit_reveal_weights_interval` of the subnet. In epochs.
+        block_time: Amount of time in seconds for one block. Defaults to 12 seconds.
+
     Returns:
-        commit (bites): hex value of encrypted and compressed uids and weights values for setting weights.
+        commit (bytes): Hex value of encrypted and compressed uids and weights values for setting weights.
         target_round (int): Drand round number when weights have to be revealed. Based on Drand Quicknet network.
-"""
+    """
 # function logic
 return commit, target_round
 ```
 
 
 To test the function run in terminal:
+1. Spin up a local subtensor branch which includes CR3
+2. Create a subnet with netuid 1 (or replace the netuid with the one you create)
 ```bash
 mkdir test
 cd test
@@ -54,10 +60,20 @@ then copy-past to ipython
 import numpy as np
 import bittensor_commit_reveal as crv3
 from bittensor.utils.weight_utils import convert_weights_and_uids_for_emit
+import bittensor as bt
 
 uids = [1, 3]
 weights = [0.3, 0.7]
 version_key = 843000
+netuid = 1
+
+subtensor = bt.Subtensor("local")
+
+subnet_reveal_period_epochs = subtensor.get_subnet_reveal_period_epochs(
+        netuid=netuid
+    )
+tempo = subtensor.get_subnet_hyperparameters(netuid).tempo
+current_block = subtensor.get_current_block()
 
 if isinstance(uids, list):
     uids = np.array(uids, dtype=np.int64)
@@ -66,7 +82,7 @@ if isinstance(weights, list):
 
 uids, weights = convert_weights_and_uids_for_emit(uids, weights)
 
-print(crv3.get_encrypted_commit(uids, weights, version_key))
+print(crv3.get_encrypted_commit(uids, weights, version_key, tempo, current_block, netuid, subnet_reveal_period_epochs))
 ```
 expected result
 ```python
@@ -159,7 +175,7 @@ import bittensor as bt
 
 sub = bt.Subtensor(network="local")
 
-netuid = 1  # your created subnets netuid
+netuid = 1  # your created subnet's netuid
 
 print(sub.weights(netuid=netuid))
 ```
