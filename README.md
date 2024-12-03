@@ -160,7 +160,8 @@ def main():
             current_round = get_current_round(info)
             logging.console.info(f"Current round: [yellow]{current_round}[/yellow]")
             if current_round == reveal_round:
-                logging.console.warning(f">>> Its time to reveal the target round: [blue]{reveal_round}[/blue]")
+                logging.console.warning(f">>> It's time to reveal the target round: [blue]{reveal_round}[/blue]")
+
                 break
 
 
