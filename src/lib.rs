@@ -13,6 +13,8 @@ use tle::{
 use tokio;
 use w3f_bls::EngineBLS;
 
+pub const SUBTENSOR_PULSE_DELAY: u64 = 24;
+
 #[derive(Encode)]
 pub struct WeightsTlockPayload {
     pub uids: Vec<u16>,
@@ -24,9 +26,11 @@ async fn generate_commit(
     uids: Vec<u16>,
     values: Vec<u16>,
     version_key: u64,
+    tempo: u64,
+    current_block: u64,
+    netuid: u16,
     subnet_reveal_period_epochs: u64,
     block_time: u64,
-    tempo: u64,
 ) -> Result<(Vec<u8>, u64), (std::io::Error, String)> {
     // Steps comes from here https://github.com/opentensor/subtensor/pull/982/files#diff-7261bf1c7f19fc66a74c1c644ec2b4b277a341609710132fb9cd5f622350a6f5R120-R131
     // 1 Instantiate payload
@@ -50,18 +54,45 @@ async fn generate_commit(
         .unwrap()
         .as_secs();
 
-    let current_round = (now - genesis_time) / period;
-    // tempo is amount of blocks in 1 epoch
-    // block_time is length the block in seconds
-    // subnet_reveal_period_epochs means after how many epochs to make a commit reveal
-    let delay_seconds = tempo * block_time * subnet_reveal_period_epochs;
-    let rounds_to_wait = (delay_seconds + period - 1) / period;
-    let reveal_round = current_round + rounds_to_wait;
+    // Compute the current epoch index
+    let tempo_plus_one = tempo + 1;
+    let netuid_plus_one = (netuid as u64) + 1;
+    let block_with_offset = current_block + netuid_plus_one;
+    let current_epoch = block_with_offset / tempo_plus_one;
 
-    // 3 Encrypt
-    let pub_key_bytes = hex::decode(public_key).expect("Decoding failed");
+    // Compute the reveal epoch
+    let reveal_epoch = current_epoch + subnet_reveal_period_epochs;
+
+    // Compute the block number when the reveal epoch starts
+    let reveal_block_number = reveal_epoch * tempo_plus_one - netuid_plus_one;
+
+    // Compute the number of blocks until the reveal epoch
+    let blocks_until_reveal = reveal_block_number.saturating_sub(current_block);
+
+    // Compute the time until the reveal in seconds
+    let time_until_reveal = blocks_until_reveal * block_time;
+
+    // Compute the reveal time in seconds since UNIX_EPOCH
+    let reveal_time = now + time_until_reveal;
+
+    // Compute the reveal round, ensuring we round up
+    let reveal_round = ((reveal_time - genesis_time + period - 1) / period) - SUBTENSOR_PULSE_DELAY;
+
+    // 3. Deserialize the public key
+    let pub_key_bytes = hex::decode(public_key).map_err(|e| {
+        (
+            std::io::Error::new(std::io::ErrorKind::InvalidData, format!("{:?}", e)),
+            "Decoding public key failed.".to_string(),
+        )
+    })?;
     let pub_key =
-        <TinyBLS381 as EngineBLS>::PublicKeyGroup::deserialize_compressed(&*pub_key_bytes).unwrap();
+        <TinyBLS381 as EngineBLS>::PublicKeyGroup::deserialize_compressed(&*pub_key_bytes)
+            .map_err(|e| {
+                (
+                    std::io::Error::new(std::io::ErrorKind::InvalidData, format!("{:?}", e)),
+                    "Deserializing public key failed.".to_string(),
+                )
+            })?;
 
     // 4 Create identity
     let message = {
@@ -80,30 +111,38 @@ async fn generate_commit(
         identity,
         OsRng,
     )
-    .map_err(|_| PyErr::new::<PyValueError, _>("Encryption failed."))
-    .unwrap();
+    .map_err(|e| {
+        (
+            std::io::Error::new(std::io::ErrorKind::Other, format!("{:?}", e)),
+            "Encryption failed.".to_string(),
+        )
+    })?;
 
     // 6. Compress ct
     let mut ct_bytes: Vec<u8> = Vec::new();
-
-    ct.serialize_compressed(&mut ct_bytes)
-        .map_err(|_| PyErr::new::<PyValueError, _>("Ciphertext serialization failed."))
-        .unwrap();
+    ct.serialize_compressed(&mut ct_bytes).map_err(|e| {
+        (
+            std::io::Error::new(std::io::ErrorKind::Other, format!("{:?}", e)),
+            "Ciphertext serialization failed.".to_string(),
+        )
+    })?;
 
     // 7. Return result
     Ok((ct_bytes, reveal_round))
 }
 
 #[pyfunction]
-#[pyo3(signature = (uids, weights, version_key, subnet_reveal_period_epochs=1, block_time=12, tempo=360))]
+#[pyo3(signature = (uids, weights, version_key, tempo, current_block, netuid, subnet_reveal_period_epochs, block_time=12))]
 fn get_encrypted_commit(
     py: Python,
     uids: Vec<u16>,
     weights: Vec<u16>,
     version_key: u64,
+    tempo: u64,
+    current_block: u64,
+    netuid: u16,
     subnet_reveal_period_epochs: u64,
     block_time: u64,
-    tempo: u64,
 ) -> PyResult<(Py<PyBytes>, u64)> {
     // create runtime to make async call
     let runtime =
@@ -112,9 +151,11 @@ fn get_encrypted_commit(
         uids,
         weights,
         version_key,
+        tempo,
+        current_block,
+        netuid,
         subnet_reveal_period_epochs,
         block_time,
-        tempo,
     ));
     // matching the result
     match result {
