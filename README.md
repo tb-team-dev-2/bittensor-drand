@@ -39,7 +39,7 @@ return commit, target_round
 ```
 
 
-To test the function run in terminal:
+To test the function in your terminal:
 1. Spin up a local subtensor branch which includes CR3
 2. Create a subnet with netuid 1 (or replace the netuid with the one you create)
 ```bash
@@ -89,20 +89,20 @@ expected result
 (b'\xb9\x96\xe4\xd1\xfd\xabm\x8cc\xeb\xe3W\r\xc7J\xb4\xea\xa9\xd5u}OG~\xae\xcc\x9a@\xdf\xee\x16\xa9\x0c\x8d7\xd6\xea_c\xc2<\xcb\xa6\xbe^K\x97|\x16\xc6|;\xb5Z\x97\xc9\xb4\x8em\xf1hv\x16\xcf\xea\x1e7\xbe-Z\xe7e\x1f$\n\xf8\x08\xcb\x18.\x94V\xa3\xd7\xcd\xc9\x04F::\t)Z\xc6\xbey \x00\x00\x00\x00\x00\x00\x00\xaaN\xe8\xe97\x8f\x99\xbb"\xdf\xad\xf6\\#%\xca:\xc2\xce\xf9\x96\x9d\x8f\x9d\xa2\xad\xfd\xc73j\x16\xda \x00\x00\x00\x00\x00\x00\x00\x84*\xb0\rw\xad\xdc\x02o\xf7i)\xbb^\x99e\xe2\\\xee\x02NR+-Q\xcd \xf7\x02\x83\xffV>\x00\x00\x00\x00\x00\x00\x00"\x00\x00\x00\x00\x00\x00\x00*\x13wXb\x93\xc5"F\x17F\x05\xcd\x15\xb0=\xe2d\xfco3\x16\xfd\xe9\xc6\xbc\xd1\xb3Y\x97\xf9\xb9!\x01\x0c\x00\x00\x00\x00\x00\x00\x00X\xa2\x8c\x18Wkq\xe5\xe6\x1c2\x86\x08\x00\x00\x00\x00\x00\x00\x00AES_GCM_', 13300875)
 ```
 
-To test this in local subnet you need:
-1. Spinup local node based on the subtensor branch `spiigot/add-pallet-drand` using command `./scripts/localnet.sh False`
-2. Create subnet
-3. Change the next hyperparameters:
+To test this in a local subnet:
+1. Spin up a local node based on the subtensor branch `spiigot/add-pallet-drand` using command `./scripts/localnet.sh False`
+2. Create a subnet
+3. Change the following hyperparameters:
     - `commit_reveal_weights_enabled` -> `True`
-    - `tempo` -> 10 (keep in mind you need to provide this as `tempo` argument to `get_encrypted_commit` function. Use polkadot website for this action.)
-    - `weights_rate_limit` -> 0 (you don't need to wait this limit to setting weights.)
-4. Register 1 or more wallets
+    - `tempo` -> 10 (keep in mind that you need to provide this as `tempo` argument to `get_encrypted_commit` function. Use polkadot website for this action.)
+    - `weights_rate_limit` -> 0 (Reduces the limit when you can set weights.)
+4. Register 1 or more wallets to the subnet
 5. Create and activate python virtual environment (`python3 -m venv venv && . venv/bin/activate`)
 6. Checkout bittensor `feat/roman/cr-v-3` branch.
 7. Install bittensor `pip install -e .`
-8. Cd to directory you clone `https://github.com/opentensor/bittensor-commit-reveal/tree/staging` repo (FFI for CRv3).
-9. Install `maturin` python package and build/install `bittensor-commit-reveal` package to your env using next command `pip install maturin && maturin develop`
-10. Run the next python script withing your python environment:
+8. Cd to directory you cloned `https://github.com/opentensor/bittensor-commit-reveal/tree/staging` (FFI for CRv3).
+9. Install the `maturin` python package and build/install `bittensor-commit-reveal` package to your env using the command `pip install maturin && maturin develop`
+10. Run the following script within your python environment:
 ```python
 import requests
 import time
@@ -146,7 +146,7 @@ def main():
         wait_for_inclusion=True,
         wait_for_finalization=True,
     )
-    logging.info(f">>> success [blue]{result}[/blue], message: [magenta]{message}[/magenta]")
+    logging.info(f">>> Success, [blue]{result}[/blue], message: [magenta]{message}[/magenta]")
 
     reveal_round = int(message.split(":")[-1])
     # Fetch Drand network info
@@ -160,15 +160,15 @@ def main():
             current_round = get_current_round(info)
             logging.console.info(f"Current round: [yellow]{current_round}[/yellow]")
             if current_round == reveal_round:
-                logging.console.warning(f">>> it's time to target round: [blue]{reveal_round}[/blue]")
+                logging.console.warning(f">>> Its time to reveal the target round: [blue]{reveal_round}[/blue]")
                 break
 
 
 if __name__ == "__main__":
     main()
 ```
-11. Wait the time when target_round comes.
-12. Check the weights with the next code:
+11. Wait till your target_round comes.
+12. Check your weights with the following code:
 
 ```python
 import bittensor as bt
@@ -179,4 +179,4 @@ netuid = 1  # your created subnet's netuid
 
 print(sub.weights(netuid=netuid))
 ```
-13. You have to see the same weights as you have set up.
+13. You can now see the same weights which you committed earlier
