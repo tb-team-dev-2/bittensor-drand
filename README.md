@@ -51,13 +51,23 @@ ipython
 
 then copy-past to ipython
 ```python
+import bittensor as bt
 import numpy as np
 import bittensor_commit_reveal as crv3
 from bittensor.utils.weight_utils import convert_weights_and_uids_for_emit
 
+subtensor = bt.subtensor("local")
+
 uids = [1, 3]
 weights = [0.3, 0.7]
 version_key = 843000
+netuid = 1
+
+subnet_reveal_period_epochs = subtensor.get_subnet_reveal_period_epochs(
+            netuid=netuid
+    )
+tempo = subtensor.get_subnet_hyperparameters(netuid).tempo
+current_block = subtensor.get_current_block()
 
 if isinstance(uids, list):
     uids = np.array(uids, dtype=np.int64)
@@ -66,7 +76,7 @@ if isinstance(weights, list):
 
 uids, weights = convert_weights_and_uids_for_emit(uids, weights)
 
-print(crv3.get_encrypted_commit(uids, weights, version_key))
+print(crv3.get_encrypted_commit(uids, weights, version_key, tempo, current_block, netuid, subnet_reveal_period_epochs))
 ```
 expected result
 ```python
