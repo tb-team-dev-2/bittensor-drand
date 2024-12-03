@@ -90,7 +90,7 @@ expected result
 ```
 
 To test this in local subnet you need:
-1. Spinup local node based on the subtensor branch `spiigot/add-pallet-drand` using command `./scripts/localnet.sh "False"`
+1. Spinup local node based on the subtensor branch `spiigot/add-pallet-drand` using command `./scripts/localnet.sh False`
 2. Create subnet
 3. Change the next hyperparameters:
     - `commit_reveal_weights_enabled` -> `True`
