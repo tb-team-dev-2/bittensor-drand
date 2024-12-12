@@ -54,36 +54,39 @@ async fn generate_commit(
         .unwrap()
         .as_secs();
 
-    // Compute the current epoch index
+    // Compute current epoch
     let tempo_plus_one = tempo + 1;
     let netuid_plus_one = (netuid as u64) + 1;
     let block_with_offset = current_block + netuid_plus_one;
+    let current_epoch = block_with_offset / tempo_plus_one;
 
-    // If at an exact epoch boundary, treat this as the new epoch start.
-    let is_epoch_boundary = (block_with_offset % tempo_plus_one) == 0;
-    let base_epoch = block_with_offset / tempo_plus_one;
-    let current_epoch = if is_epoch_boundary {
-        base_epoch + 1
-    } else {
-        base_epoch
-    };
+    // Compute initial reveal epoch
+    let mut reveal_epoch = current_epoch + subnet_reveal_period_epochs;
 
-    // Compute the reveal epoch
-    let reveal_epoch = current_epoch + subnet_reveal_period_epochs;
+    // Compute the block when the reveal epoch starts
+    let mut reveal_block_number = reveal_epoch * tempo_plus_one - netuid_plus_one;
 
-    // Compute the block number when the reveal epoch starts
-    let reveal_block_number = reveal_epoch * tempo_plus_one - netuid_plus_one;
+    // Compute how many blocks until reveal
+    let mut blocks_until_reveal = reveal_block_number.saturating_sub(current_block);
 
-    // Compute the number of blocks until the reveal epoch
-    let blocks_until_reveal = reveal_block_number.saturating_sub(current_block);
+    // Compute time until reveal in seconds
+    let mut time_until_reveal = blocks_until_reveal * block_time;
 
-    // Compute the time until the reveal in seconds
-    let time_until_reveal = blocks_until_reveal * block_time;
+    // Since SUBTENSOR_PULSE_DELAY is in pulses, we must ensure that we have at least
+    // SUBTENSOR_PULSE_DELAY pulses worth of time before reveal.
+    // Each pulse is 'period' seconds, so we need at least SUBTENSOR_PULSE_DELAY * period seconds.
+    while time_until_reveal < SUBTENSOR_PULSE_DELAY * period {
+        // Not enough lead time, push to next epoch
+        reveal_epoch += 1;
+        reveal_block_number = reveal_epoch * tempo_plus_one - netuid_plus_one;
+        blocks_until_reveal = reveal_block_number.saturating_sub(current_block);
+        time_until_reveal = blocks_until_reveal * block_time;
+    }
 
     // Compute the reveal time in seconds since UNIX_EPOCH
     let reveal_time = now + time_until_reveal;
 
-    // Compute the reveal round, ensuring we round up
+    // Compute the reveal round, ensure we pick an older Drand round by subtracting SUBTENSOR_PULSE_DELAY pulses.
     let reveal_round = ((reveal_time - genesis_time + period - 1) / period) - SUBTENSOR_PULSE_DELAY;
 
     // 3. Deserialize the public key
