@@ -7,7 +7,7 @@ PERIOD = 3  # Drand period in seconds
 GENESIS_TIME = 1692803367
 
 
-def test_get_encrypted_commit_ok():
+def test_get_encrypted_commits():
     uids = [1, 2]
     weights = [11, 22]
     version_key = 50
@@ -19,11 +19,20 @@ def test_get_encrypted_commit_ok():
 
     start_time = int(time.time())
     ct_pybytes, reveal_round = get_encrypted_commit(
-        uids, weights, version_key, tempo, current_block, netuid, reveal_period, block_time
+        uids,
+        weights,
+        version_key,
+        tempo,
+        current_block,
+        netuid,
+        reveal_period,
+        block_time,
     )
 
     # Basic checks
-    assert ct_pybytes is not None and len(ct_pybytes) > 0, "Ciphertext should not be empty"
+    assert (
+        ct_pybytes is not None and len(ct_pybytes) > 0
+    ), "Ciphertext should not be empty"
     assert reveal_round > 0, "Reveal round should be positive"
 
     expected_reveal_round, _, _ = compute_expected_reveal_round(
@@ -31,10 +40,11 @@ def test_get_encrypted_commit_ok():
     )
 
     # The reveal_round should be close to what we predict
-    assert abs(reveal_round - expected_reveal_round) <= 1, (
-        f"Reveal round {reveal_round} not close to expected {expected_reveal_round}"
-    )
-    
+    assert (
+        abs(reveal_round - expected_reveal_round) <= 1
+    ), f"Reveal round {reveal_round} not close to expected {expected_reveal_round}"
+
+
 def test_generate_commit_success():
     uids = [1, 2, 3]
     values = [10, 20, 30]
@@ -47,30 +57,48 @@ def test_generate_commit_success():
 
     start_time = int(time.time())
     ct_pybytes, reveal_round = get_encrypted_commit(
-        uids, values, version_key, tempo, current_block, netuid, subnet_reveal_period_epochs, block_time
+        uids,
+        values,
+        version_key,
+        tempo,
+        current_block,
+        netuid,
+        subnet_reveal_period_epochs,
+        block_time,
     )
 
-    assert ct_pybytes is not None and len(ct_pybytes) > 0, "Ciphertext should not be empty"
+    assert (
+        ct_pybytes is not None and len(ct_pybytes) > 0
+    ), "Ciphertext should not be empty"
     assert reveal_round > 0, "Reveal round should be positive"
 
-    expected_reveal_round, expected_reveal_time, time_until_reveal = compute_expected_reveal_round(
-        start_time, tempo, current_block, netuid, subnet_reveal_period_epochs, block_time
+    expected_reveal_round, expected_reveal_time, time_until_reveal = (
+        compute_expected_reveal_round(
+            start_time,
+            tempo,
+            current_block,
+            netuid,
+            subnet_reveal_period_epochs,
+            block_time,
+        )
     )
 
-    assert abs(reveal_round - expected_reveal_round) <= 1, (
-        f"Reveal round {reveal_round} differs from expected {expected_reveal_round}"
-    )
+    assert (
+        abs(reveal_round - expected_reveal_round) <= 1
+    ), f"Reveal round {reveal_round} differs from expected {expected_reveal_round}"
 
     required_lead_time = SUBTENSOR_PULSE_DELAY * PERIOD
-    computed_reveal_time = GENESIS_TIME + (reveal_round + SUBTENSOR_PULSE_DELAY) * PERIOD
+    computed_reveal_time = (
+        GENESIS_TIME + (reveal_round + SUBTENSOR_PULSE_DELAY) * PERIOD
+    )
     assert computed_reveal_time - start_time >= required_lead_time, (
         "Not enough lead time before reveal. "
         f"computed_reveal_time={computed_reveal_time}, start_time={start_time}, required={required_lead_time}"
     )
 
-    assert time_until_reveal >= SUBTENSOR_PULSE_DELAY * PERIOD, (
-        f"time_until_reveal {time_until_reveal} is less than required {SUBTENSOR_PULSE_DELAY * PERIOD}"
-    )
+    assert (
+        time_until_reveal >= SUBTENSOR_PULSE_DELAY * PERIOD
+    ), f"time_until_reveal {time_until_reveal} is less than required {SUBTENSOR_PULSE_DELAY * PERIOD}"
 
 
 @pytest.mark.asyncio
@@ -89,21 +117,35 @@ async def test_generate_commit_various_tempos():
         start_time = int(time.time())
 
         ct_pybytes, reveal_round = get_encrypted_commit(
-            uids, values, version_key, tempo, CURRENT_BLOCK, NETUID, SUBNET_REVEAL_PERIOD_EPOCHS, BLOCK_TIME
+            uids,
+            values,
+            version_key,
+            tempo,
+            CURRENT_BLOCK,
+            NETUID,
+            SUBNET_REVEAL_PERIOD_EPOCHS,
+            BLOCK_TIME,
         )
 
         assert len(ct_pybytes) > 0, f"Ciphertext is empty for tempo {tempo}"
         assert reveal_round > 0, f"Reveal round is zero or negative for tempo {tempo}"
 
         expected_reveal_round, _, time_until_reveal = compute_expected_reveal_round(
-            start_time, tempo, CURRENT_BLOCK, NETUID, SUBNET_REVEAL_PERIOD_EPOCHS, BLOCK_TIME
+            start_time,
+            tempo,
+            CURRENT_BLOCK,
+            NETUID,
+            SUBNET_REVEAL_PERIOD_EPOCHS,
+            BLOCK_TIME,
         )
 
-        assert abs(reveal_round - expected_reveal_round) <= 1, (
-            f"Tempo {tempo}: reveal_round {reveal_round} not close to expected {expected_reveal_round}"
-        )
+        assert (
+            abs(reveal_round - expected_reveal_round) <= 1
+        ), f"Tempo {tempo}: reveal_round {reveal_round} not close to expected {expected_reveal_round}"
 
-        computed_reveal_time = GENESIS_TIME + (reveal_round + SUBTENSOR_PULSE_DELAY) * PERIOD
+        computed_reveal_time = (
+            GENESIS_TIME + (reveal_round + SUBTENSOR_PULSE_DELAY) * PERIOD
+        )
         required_lead_time = SUBTENSOR_PULSE_DELAY * PERIOD
 
         assert computed_reveal_time - start_time >= required_lead_time, (
@@ -111,9 +153,10 @@ async def test_generate_commit_various_tempos():
             f"start_time={start_time}, required={required_lead_time}"
         )
 
-        assert time_until_reveal >= SUBTENSOR_PULSE_DELAY * PERIOD, (
-            f"Tempo {tempo}: time_until_reveal {time_until_reveal} is less than required {SUBTENSOR_PULSE_DELAY * PERIOD}"
-        )
+        assert (
+            time_until_reveal >= SUBTENSOR_PULSE_DELAY * PERIOD
+        ), f"Tempo {tempo}: time_until_reveal {time_until_reveal} is less than required {SUBTENSOR_PULSE_DELAY * PERIOD}"
+
 
 def compute_expected_reveal_round(
     now: int,
@@ -148,5 +191,7 @@ def compute_expected_reveal_round(
         time_until_reveal = blocks_until_reveal * block_time
 
     reveal_time = now + time_until_reveal
-    reveal_round = ((reveal_time - GENESIS_TIME + PERIOD - 1) // PERIOD) - SUBTENSOR_PULSE_DELAY
+    reveal_round = (
+        (reveal_time - GENESIS_TIME + PERIOD - 1) // PERIOD
+    ) - SUBTENSOR_PULSE_DELAY
     return reveal_round, reveal_time, time_until_reveal
