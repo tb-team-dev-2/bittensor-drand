@@ -58,7 +58,15 @@ async fn generate_commit(
     let tempo_plus_one = tempo + 1;
     let netuid_plus_one = (netuid as u64) + 1;
     let block_with_offset = current_block + netuid_plus_one;
-    let current_epoch = block_with_offset / tempo_plus_one;
+
+    // If at an exact epoch boundary, treat this as the new epoch start.
+    let is_epoch_boundary = (block_with_offset % tempo_plus_one) == 0;
+    let base_epoch = block_with_offset / tempo_plus_one;
+    let current_epoch = if is_epoch_boundary {
+        base_epoch + 1
+    } else {
+        base_epoch
+    };
 
     // Compute the reveal epoch
     let reveal_epoch = current_epoch + subnet_reveal_period_epochs;
