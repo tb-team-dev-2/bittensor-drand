@@ -33,18 +33,14 @@ async fn generate_commit(
     block_time: u64,
 ) -> Result<(Vec<u8>, u64), (std::io::Error, String)> {
     // Steps comes from here https://github.com/opentensor/subtensor/pull/982/files#diff-7261bf1c7f19fc66a74c1c644ec2b4b277a341609710132fb9cd5f622350a6f5R120-R131
-    // 1 Instantiate payload
+    // Instantiate payload
     let payload = WeightsTlockPayload {
         uids,
         values,
         version_key,
     };
-
-    // 2 Serialize payload
     let serialized_payload = payload.encode();
 
-    // Calculate reveal_round
-    // all of 3 variables are constants for drand quicknet
     let period = 3;
     let genesis_time = 1692803367;
     let public_key = "83cf0f2896adee7eb8b5f01fcad3912212c437e0073e911fb90022d3e760183c8c4b450b6a0a6c3ac6a5776a2d1064510d1fec758c921cc22b0e17e63aaf4bcb5ed66304de9cf809bd274ca73bab4af5a6e9c76a4bc09e76eae8991ef5ece45a";
@@ -54,42 +50,29 @@ async fn generate_commit(
         .unwrap()
         .as_secs();
 
-    // Compute current epoch
     let tempo_plus_one = tempo + 1;
     let netuid_plus_one = (netuid as u64) + 1;
     let block_with_offset = current_block + netuid_plus_one;
     let current_epoch = block_with_offset / tempo_plus_one;
 
-    // Compute initial reveal epoch
+    // Calculate reveal epoch and ensure enough time for SUBTENSOR_PULSE_DELAY pulses
     let mut reveal_epoch = current_epoch + subnet_reveal_period_epochs;
-
-    // Compute the block when the reveal epoch starts
     let mut reveal_block_number = reveal_epoch * tempo_plus_one - netuid_plus_one;
-
-    // Compute how many blocks until reveal
     let mut blocks_until_reveal = reveal_block_number.saturating_sub(current_block);
-
-    // Compute time until reveal in seconds
     let mut time_until_reveal = blocks_until_reveal * block_time;
 
-    // Since SUBTENSOR_PULSE_DELAY is in pulses, we must ensure that we have at least
-    // SUBTENSOR_PULSE_DELAY pulses worth of time before reveal.
-    // Each pulse is 'period' seconds, so we need at least SUBTENSOR_PULSE_DELAY * period seconds.
+    // Ensure at least SUBTENSOR_PULSE_DELAY * period seconds lead time
     while time_until_reveal < SUBTENSOR_PULSE_DELAY * period {
-        // Not enough lead time, push to next epoch
         reveal_epoch += 1;
         reveal_block_number = reveal_epoch * tempo_plus_one - netuid_plus_one;
         blocks_until_reveal = reveal_block_number.saturating_sub(current_block);
         time_until_reveal = blocks_until_reveal * block_time;
     }
 
-    // Compute the reveal time in seconds since UNIX_EPOCH
     let reveal_time = now + time_until_reveal;
-
-    // Compute the reveal round, ensure we pick an older Drand round by subtracting SUBTENSOR_PULSE_DELAY pulses.
     let reveal_round = ((reveal_time - genesis_time + period - 1) / period) - SUBTENSOR_PULSE_DELAY;
 
-    // 3. Deserialize the public key
+    // Deserialize public key
     let pub_key_bytes = hex::decode(public_key).map_err(|e| {
         (
             std::io::Error::new(std::io::ErrorKind::InvalidData, format!("{:?}", e)),
@@ -105,7 +88,7 @@ async fn generate_commit(
                 )
             })?;
 
-    // 4 Create identity
+    // Create identity from reveal_round
     let message = {
         let mut hasher = sha2::Sha256::new();
         hasher.update(reveal_round.to_be_bytes());
@@ -113,7 +96,7 @@ async fn generate_commit(
     };
     let identity = Identity::new(b"", vec![message]);
 
-    // 5. Encryption via tle with t-lock under the hood
+    // Encrypt payload
     let esk = [2; 32];
     let ct = tle::<TinyBLS381, AESGCMStreamCipherProvider, OsRng>(
         pub_key,
@@ -129,7 +112,7 @@ async fn generate_commit(
         )
     })?;
 
-    // 6. Compress ct
+    // Compress ciphertext
     let mut ct_bytes: Vec<u8> = Vec::new();
     ct.serialize_compressed(&mut ct_bytes).map_err(|e| {
         (
@@ -138,7 +121,6 @@ async fn generate_commit(
         )
     })?;
 
-    // 7. Return result
     Ok((ct_bytes, reveal_round))
 }
 
