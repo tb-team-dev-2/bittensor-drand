@@ -64,7 +64,7 @@ async fn generate_commit(
     // Ensure at least SUBTENSOR_PULSE_DELAY * period seconds lead time
     while time_until_reveal < SUBTENSOR_PULSE_DELAY * period {
 
-        if blocks_until_reveal > 0 {
+        if blocks_until_reveal > 1 {
             break;
         }
 
