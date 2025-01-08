@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.2.0 /2025-01-08
+
+## What's Changed
+* fix epoch jump when epoch_block is close by @JohnReedV in https://github.com/opentensor/bittensor-commit-reveal/pull/12
+* Backmerge staging to main 0.1.0 @ibraheem-opentensor in https://github.com/opentensor/bittensor-commit-reveal/pull/13
+
+**Full Changelog**: https://github.com/opentensor/bittensor-commit-reveal/compare/v0.1.0...v0.2.0
+
 ## v0.1.0 /2024-12-12
 
 ## What's Changed
