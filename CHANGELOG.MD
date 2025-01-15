@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.2.0 /2025-01-08
+## v0.2.0 /2025-01-15
 
 ## What's Changed
 * fix epoch jump when epoch_block is close by @JohnReedV in https://github.com/opentensor/bittensor-commit-reveal/pull/12
