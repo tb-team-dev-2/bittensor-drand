@@ -1,6 +1,6 @@
 [project]
 name = "bittensor-commit-reveal"
-version = "0.1.0"
+version = "0.3.0"
 description = ""
 readme = "README.md"
 license = {file = "LICENSE"}
@@ -10,7 +10,7 @@ dependencies = []
 requires-python = ">= 3.9"
 
 authors = [
-  {name = "Roman Chkhaidze", email = "roman@opentensor.dev"},
+  {name = "Roman Chkhaidze", email = "r@latent.to"},
 ]
 maintainers = [
   {name = "Cortex Team", email = "cortex@opentensor.dev"},
@@ -30,7 +30,8 @@ classifiers = [
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
         "Topic :: Software Development",
         "Topic :: Software Development :: Libraries",
-        "Topic :: Software Development :: Libraries :: Python Modules",]
+        "Topic :: Software Development :: Libraries :: Python Modules",
+]
 
 [project.urls]
 Repository = "https://github.com/opentensor/bittensor-commit-reveal"
@@ -45,5 +46,6 @@ exclude = ["tests*"]
 
 [project.optional-dependencies]
 dev = [
-    "maturin==1.7.0"
+    "maturin==1.7.0",
+    "pytest-asyncio==0.23.7"
 ]
