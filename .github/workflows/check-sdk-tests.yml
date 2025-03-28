@@ -168,7 +168,8 @@ jobs:
 
       - name: Create Python virtual environment
         working-directory: ${{ github.workspace }}
-        run: uv venv ${{ github.workspace }}/venv
+        run: |
+          python -m venv ${{ github.workspace }}/venv
 
       - name: Clone Bittensor SDK repo
         working-directory: ${{ github.workspace }}
@@ -193,7 +194,6 @@ jobs:
 
       - name: Build and install Rust bittensor_commit_reveal package
         run: |
-          source ${{ github.workspace }}/venv/bin/activate
           uv run --active maturin develop
 
       - name: Download Cached Docker Image
