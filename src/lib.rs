@@ -218,7 +218,6 @@ fn get_encrypted_commit(
 
 async fn encrypt_commitment(
     data: &str,
-    current_block: u64,
     blocks_until_reveal: u64,
     block_time: f64,
 ) -> Result<(Vec<u8>, u64), (std::io::Error, String)> {
@@ -250,23 +249,17 @@ async fn encrypt_commitment(
 }
 
 #[pyfunction]
-#[pyo3(signature = (data, current_block, blocks_until_reveal, block_time=12.0))]
+#[pyo3(signature = (data, blocks_until_reveal, block_time=12.0))]
 fn get_encrypted_commitment(
     py: Python,
     data: &str,
-    current_block: u64,
     blocks_until_reveal: u64,
     block_time: f64,
 ) -> PyResult<(Py<PyBytes>, u64)> {
     // create runtime to make async call
     let runtime =
         tokio::runtime::Runtime::new().map_err(|e| PyValueError::new_err(e.to_string()))?;
-    let result = runtime.block_on(encrypt_commitment(
-        data,
-        current_block,
-        blocks_until_reveal,
-        block_time,
-    ));
+    let result = runtime.block_on(encrypt_commitment(data, blocks_until_reveal, block_time));
     // matching the result
     match result {
         Ok((ciphertext, target_round)) => {
