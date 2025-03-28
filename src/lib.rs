@@ -218,7 +218,7 @@ fn get_encrypted_commit(
 async fn encrypt_commitment(
     data: &str,
     current_block: u64,
-    reveal_block: u64,
+    blocks_until_reveal: u64,
     block_time: f64,
 ) -> Result<(Vec<u8>, u64), (std::io::Error, String)> {
     let serialized_data = data.encode();
@@ -227,13 +227,12 @@ async fn encrypt_commitment(
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
-        .as_secs() as f64;
+        .as_secs_f64();
 
     let current_round = ((now - GENESIS_TIME as f64) / DRAND_PERIOD as f64).floor() as u64;
 
-    let in_blocks = reveal_block - current_block;
-    let in_blocks_time = in_blocks as f64 * block_time;
-    let in_rounds = (in_blocks_time / DRAND_PERIOD as f64).floor() as u64;
+    let in_blocks_time = blocks_until_reveal as f64 * block_time;
+    let in_rounds = (in_blocks_time / DRAND_PERIOD as f64).ceil() as u64;
 
     let drand_round = current_round + in_rounds;
     let reveal_round = drand_round - SUBTENSOR_PULSE_DELAY;
@@ -246,7 +245,9 @@ async fn encrypt_commitment(
         )
     })?;
 
-    Ok((ct_bytes, reveal_round))
+    let reveal_block = current_block + blocks_until_reveal;
+
+    Ok((ct_bytes, reveal_block))
 }
 
 #[pyfunction]
