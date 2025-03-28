@@ -227,36 +227,26 @@ async fn encrypt_commitment(
 ) -> Result<(Vec<u8>, u64), (std::io::Error, String)> {
     let serialized_data = data.encode();
 
+    // revealed round calculation
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_secs();
-    println!(">>> now: {:?}", now);
-    println!(">>> now - GENESIS_TIME: {:?}", now - GENESIS_TIME);
-
     let current_round = (now - GENESIS_TIME) / DRAND_PERIOD;
-    println!(">>> current_round: {:?}", current_round);
-
-    println!(">>> reveal_block: {:?} / current_block: {:?}", reveal_block, current_block);
-
     let in_blocks = reveal_block - current_block;
     let in_blocks_time = in_blocks * block_time;
     let in_rounds = in_blocks_time / DRAND_PERIOD;
     let drand_round = current_round + in_rounds;
-    println!(">>> drand_round: {:?}", drand_round);
     let reveal_round = drand_round - SUBTENSOR_PULSE_DELAY;
 
-    // let reveal_round = (((reveal_block - current_block + 1) * block_time) / DRAND_PERIOD
-    //     + current_round)
-    //     - SUBTENSOR_PULSE_DELAY;
-    println!(">>> reveal_round: {:?}", reveal_round);
-
+    // TLE encoding
     let ct_bytes = encrypt_and_compress(&serialized_data, reveal_round).map_err(|e| {
         (
             std::io::Error::new(std::io::ErrorKind::Other, format!("{:?}", e)),
             "Encryption failed.".to_string(),
         )
     })?;
+
     Ok((ct_bytes, reveal_round))
 }
 
