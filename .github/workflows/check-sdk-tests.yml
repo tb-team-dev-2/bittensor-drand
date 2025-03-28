@@ -188,18 +188,10 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: uv sync --all-extras --dev
 
-      - name: Clone bittensor_commit_reveal repo
-        run: git clone https://github.com/opentensor/bittensor-commit-reveal.git
-
-      - name: Checkout PR branch in bittensor_commit_reveal repo
-        working-directory: ${{ github.workspace }}/bittensor-commit-reveal
-        run: |
-          git fetch origin ${{ github.event.pull_request.head.ref }}
-          git checkout ${{ github.event.pull_request.head.ref }}
-          echo "Current branch: $(git rev-parse --abbrev-ref HEAD)"
+      - name: Check-out repository
+        uses: actions/checkout@v4
 
       - name: Build and install Rust bittensor_commit_reveal package
-        working-directory: ${{ github.workspace }}
         run: |
           source ${{ github.workspace }}/venv/bin/activate
           uv run --active maturin develop
