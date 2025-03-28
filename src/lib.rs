@@ -252,12 +252,12 @@ async fn encrypt_commitment(
 }
 
 #[pyfunction]
-#[pyo3(signature = (data, current_block, reveal_block, block_time=12.0))]
+#[pyo3(signature = (data, current_block, blocks_until_reveal, block_time=12.0))]
 fn get_encrypted_commitment(
     py: Python,
     data: &str,
     current_block: u64,
-    reveal_block: u64,
+    blocks_until_reveal: u64,
     block_time: f64,
 ) -> PyResult<(Py<PyBytes>, u64)> {
     // create runtime to make async call
@@ -266,7 +266,7 @@ fn get_encrypted_commitment(
     let result = runtime.block_on(encrypt_commitment(
         data,
         current_block,
-        reveal_block,
+        blocks_until_reveal,
         block_time,
     ));
     // matching the result
