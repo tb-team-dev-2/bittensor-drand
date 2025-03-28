@@ -172,7 +172,8 @@ async fn generate_commit(
     }
 
     let reveal_time = now + time_until_reveal;
-    let reveal_round = ((reveal_time - GENESIS_TIME as f64) / DRAND_PERIOD as f64).ceil() as u64 - SUBTENSOR_PULSE_DELAY;
+    let reveal_round = ((reveal_time - GENESIS_TIME as f64) / DRAND_PERIOD as f64).ceil() as u64
+        - SUBTENSOR_PULSE_DELAY;
 
     let ct_bytes = encrypt_and_compress(&serialized_payload, reveal_round)?;
 
