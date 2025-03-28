@@ -227,15 +227,11 @@ async fn encrypt_commitment(
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
-        .as_secs_f64();
+        .as_secs();
 
-    let current_round = ((now - GENESIS_TIME as f64) / DRAND_PERIOD as f64).floor() as u64;
-
-    let in_blocks_time = blocks_until_reveal as f64 * block_time;
-    let in_rounds = (in_blocks_time / DRAND_PERIOD as f64).ceil() as u64;
-
-    let drand_round = current_round + in_rounds;
-    let reveal_round = drand_round - SUBTENSOR_PULSE_DELAY;
+    let reveal_round = ((now - GENESIS_TIME)
+        + (blocks_until_reveal as f64 * block_time).round() as u64)
+        / DRAND_PERIOD;
 
     // TLE encoding
     let ct_bytes = encrypt_and_compress(&serialized_data, reveal_round).map_err(|e| {
