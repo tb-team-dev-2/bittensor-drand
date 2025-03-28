@@ -168,8 +168,7 @@ jobs:
 
       - name: Create Python virtual environment
         working-directory: ${{ github.workspace }}
-        run: |
-          python -m venv ${{ github.workspace }}/venv
+        run: uv venv ${{ github.workspace }}/venv
 
       - name: Clone Bittensor SDK repo
         working-directory: ${{ github.workspace }}
@@ -189,11 +188,20 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: uv sync --all-extras --dev
 
-      - name: Check-out repository
-        uses: actions/checkout@v4
+      - name: Clone bittensor-commit-reveal repo
+        run: git clone https://github.com/opentensor/bittensor-commit-reveal.git
 
-      - name: Build and install Rust bittensor_commit_reveal package
+      - name: Checkout PR branch in bittensor-commit-reveal repo
+        working-directory: ${{ github.workspace }}/bittensor-commit-reveal
         run: |
+          git fetch origin ${{ github.event.pull_request.head.ref }}
+          git checkout ${{ github.event.pull_request.head.ref }}
+          echo "Current branch: $(git rev-parse --abbrev-ref HEAD)"
+
+      - name: Build and install bittensor-commit-reveal repo package
+        working-directory: ${{ github.workspace }}
+        run: |
+          source ${{ github.workspace }}/venv/bin/activate
           uv run --active maturin develop
 
       - name: Download Cached Docker Image
