@@ -246,9 +246,7 @@ async fn encrypt_commitment(
         )
     })?;
 
-    let reveal_block = current_block + blocks_until_reveal;
-
-    Ok((ct_bytes, reveal_block))
+    Ok((ct_bytes, reveal_round))
 }
 
 #[pyfunction]
