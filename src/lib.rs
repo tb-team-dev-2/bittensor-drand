@@ -136,9 +136,10 @@ async fn generate_commit(
     current_block: u64,
     netuid: u16,
     subnet_reveal_period_epochs: u64,
-    block_time: u64,
+    block_time: f64,
 ) -> Result<(Vec<u8>, u64), (std::io::Error, String)> {
     // Steps comes from here https://github.com/opentensor/subtensor/pull/982/files#diff-7261bf1c7f19fc66a74c1c644ec2b4b277a341609710132fb9cd5f622350a6f5R120-R131
+
     // Instantiate payload
     let payload = WeightsTlockPayload {
         uids,
@@ -150,41 +151,36 @@ async fn generate_commit(
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
-        .as_secs();
+        .as_secs_f64();
 
     let tempo_plus_one = tempo + 1;
     let netuid_plus_one = (netuid as u64) + 1;
     let block_with_offset = current_block + netuid_plus_one;
     let current_epoch = block_with_offset / tempo_plus_one;
 
-    // Calculate reveal epoch and ensure enough time for SUBTENSOR_PULSE_DELAY pulses
     let mut reveal_epoch = current_epoch + subnet_reveal_period_epochs;
     let mut reveal_block_number = reveal_epoch * tempo_plus_one - netuid_plus_one;
     let mut blocks_until_reveal = reveal_block_number - current_block;
-    let mut time_until_reveal = blocks_until_reveal * block_time;
+    let mut time_until_reveal = (blocks_until_reveal as f64) * block_time;
 
-    // Ensure at least SUBTENSOR_PULSE_DELAY * DRAND_PERIOD seconds lead time
-    while time_until_reveal < SUBTENSOR_PULSE_DELAY * DRAND_PERIOD {
-        if blocks_until_reveal > 1 {
-            break;
-        }
-
+    //
+    while time_until_reveal < (SUBTENSOR_PULSE_DELAY * DRAND_PERIOD) as f64 {
         reveal_epoch += 1;
         reveal_block_number = reveal_epoch * tempo_plus_one - netuid_plus_one;
         blocks_until_reveal = reveal_block_number - current_block;
-        time_until_reveal = blocks_until_reveal * block_time;
+        time_until_reveal = (blocks_until_reveal as f64) * block_time;
     }
 
     let reveal_time = now + time_until_reveal;
-    let reveal_round =
-        ((reveal_time - GENESIS_TIME + DRAND_PERIOD - 1) / DRAND_PERIOD) - SUBTENSOR_PULSE_DELAY;
+    let reveal_round = ((reveal_time - GENESIS_TIME as f64) / DRAND_PERIOD as f64).ceil() as u64 - SUBTENSOR_PULSE_DELAY;
+
     let ct_bytes = encrypt_and_compress(&serialized_payload, reveal_round)?;
 
     Ok((ct_bytes, reveal_round))
 }
 
 #[pyfunction]
-#[pyo3(signature = (uids, weights, version_key, tempo, current_block, netuid, subnet_reveal_period_epochs, block_time=12))]
+#[pyo3(signature = (uids, weights, version_key, tempo, current_block, netuid, subnet_reveal_period_epochs, block_time=12.0))]
 fn get_encrypted_commit(
     py: Python,
     uids: Vec<u16>,
@@ -194,7 +190,7 @@ fn get_encrypted_commit(
     current_block: u64,
     netuid: u16,
     subnet_reveal_period_epochs: u64,
-    block_time: u64,
+    block_time: f64,
 ) -> PyResult<(Py<PyBytes>, u64)> {
     // create runtime to make async call
     let runtime =
@@ -223,7 +219,7 @@ async fn encrypt_commitment(
     data: &str,
     current_block: u64,
     reveal_block: u64,
-    block_time: u64,
+    block_time: f64,
 ) -> Result<(Vec<u8>, u64), (std::io::Error, String)> {
     let serialized_data = data.encode();
 
@@ -231,11 +227,14 @@ async fn encrypt_commitment(
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
-        .as_secs();
-    let current_round = (now - GENESIS_TIME) / DRAND_PERIOD;
+        .as_secs() as f64;
+
+    let current_round = ((now - GENESIS_TIME as f64) / DRAND_PERIOD as f64).floor() as u64;
+
     let in_blocks = reveal_block - current_block;
-    let in_blocks_time = in_blocks * block_time;
-    let in_rounds = in_blocks_time / DRAND_PERIOD;
+    let in_blocks_time = in_blocks as f64 * block_time;
+    let in_rounds = (in_blocks_time / DRAND_PERIOD as f64).floor() as u64;
+
     let drand_round = current_round + in_rounds;
     let reveal_round = drand_round - SUBTENSOR_PULSE_DELAY;
 
@@ -251,13 +250,13 @@ async fn encrypt_commitment(
 }
 
 #[pyfunction]
-#[pyo3(signature = (data, current_block, reveal_block, block_time=12))]
+#[pyo3(signature = (data, current_block, reveal_block, block_time=12.0))]
 fn get_encrypted_commitment(
     py: Python,
     data: &str,
     current_block: u64,
     reveal_block: u64,
-    block_time: u64,
+    block_time: f64,
 ) -> PyResult<(Py<PyBytes>, u64)> {
     // create runtime to make async call
     let runtime =
