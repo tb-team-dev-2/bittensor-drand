@@ -157,7 +157,6 @@ async def test_generate_commit_various_tempos():
         pass
 
 
-
 def compute_expected_reveal_round(
     now: int,
     tempo: int,
