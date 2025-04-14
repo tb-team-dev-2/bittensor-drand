@@ -64,7 +64,7 @@ pub struct DrandResponse {
 /// * `Err((std::io::Error, String))` if an error occurs during decoding, public key deserialization,
 ///   encryption, or ciphertext compression.
 ///
-pub(crate) fn encrypt_and_compress(
+pub fn encrypt_and_compress(
     serialized_data: &[u8],
     reveal_round: u64,
 ) -> Result<Vec<u8>, (std::io::Error, String)> {
@@ -391,7 +391,7 @@ mod tests {
     #[test]
     fn test_encrypt_and_decrypt_static_key() {
         let message = b"hello, bittensor!";
-        let reveal_round = 17200000; // произвольный старый round, доступный в Quicknet
+        let reveal_round = 17200000;
 
         let encrypted =
             encrypt_and_compress(message, reveal_round).expect("Encryption should succeed");
