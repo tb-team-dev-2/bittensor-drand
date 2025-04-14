@@ -97,7 +97,7 @@ pub(crate) fn encrypt_and_compress(
     let ct = tle::<TinyBLS381, AESGCMStreamCipherProvider, OsRng>(
         pub_key,
         esk,
-        &serialized_data,
+        serialized_data,
         identity,
         OsRng,
     )
@@ -119,7 +119,6 @@ pub(crate) fn encrypt_and_compress(
 
     Ok(ct_bytes)
 }
-
 
 /// Decrypts and decompresses timelock-encrypted data using the provided Drand signature.
 ///
@@ -237,7 +236,6 @@ pub fn generate_commit(
     Ok((ct_bytes, reveal_round))
 }
 
-
 /// Encrypts a string-based commitment using Drand timelock encryption for a future reveal round.
 ///
 /// This function encodes the input `data` and calculates the corresponding Drand round number
@@ -286,7 +284,6 @@ pub fn encrypt_commitment(
 
     Ok((ct_bytes, reveal_round))
 }
-
 
 /// Fetches Drand round information (randomness and signature) from available public endpoints.
 ///
@@ -344,7 +341,6 @@ pub fn get_round_info(round: Option<u64>) -> Result<DrandResponse, String> {
         Err(last_error.unwrap_or_else(|| "Failed to get data from all Drand endpoints".to_string()))
     })
 }
-
 
 /// Retrieves the Drand BLS signature for a specific reveal round.
 ///

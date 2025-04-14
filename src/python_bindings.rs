@@ -6,7 +6,6 @@ use pyo3::types::PyBytes;
 use pyo3::{pyfunction, pymodule, wrap_pyfunction, Bound, PyResult, Python};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-
 /// Returns a timelock-encrypted commitment and its corresponding Drand reveal round.
 ///
 /// This function is used to generate an encrypted commitment based on UID weights and
@@ -61,7 +60,6 @@ fn get_encrypted_commit(
     }
 }
 
-
 /// Encrypts a string commitment with a timelock for a future Drand round.
 ///
 /// This function encrypts arbitrary string data, ensuring it will be decryptable
@@ -102,7 +100,6 @@ fn get_latest_round_py() -> PyResult<u64> {
 
     Ok(response.round)
 }
-
 
 /// Encrypts binary data for a future Drand round based on block delay.
 ///
@@ -195,11 +192,8 @@ fn decrypt(py: Python, encrypted_data: &[u8], no_errors: bool) -> PyResult<Optio
     let signature_bytes = hex::decode(signature_str)
         .map_err(|e| PyValueError::new_err(format!("Invalid hex in signature: {:?}", e)))?;
 
-    let decoded_data = drand::decrypt_and_decompress(
-        &user_data.encrypted_data,
-        &signature_bytes,
-    )
-    .map_err(|e| PyValueError::new_err(e))?;
+    let decoded_data = drand::decrypt_and_decompress(&user_data.encrypted_data, &signature_bytes)
+        .map_err(|e| PyValueError::new_err(e))?;
 
     Ok(Some(PyBytes::new_bound(py, &decoded_data).into()))
 }
