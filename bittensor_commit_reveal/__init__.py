@@ -5,7 +5,6 @@ from bittensor_commit_reveal.bittensor_commit_reveal import (
     get_encrypted_commitment as _get_encrypted_commitment,
     encrypt as _encrypt,
     decrypt as _decrypt,
-    get_reveal_round_signature as _get_reveal_round_signature,
     get_latest_round as _get_latest_round,
 )
 
