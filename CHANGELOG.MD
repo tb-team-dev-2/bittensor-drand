@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.4.0 /2025-04-14
+
+## What's Changed
+* Add encrypt, decrypt functionality for `bt.timelock` by @basfroman in https://github.com/opentensor/bittensor-commit-reveal/pull/21
+* Backmerge main staging 040 by @ibraheem-abe in https://github.com/opentensor/bittensor-commit-reveal/pull/22
+
+**Full Changelog**: https://github.com/opentensor/bittensor-commit-reveal/compare/v0.3.1...v0.4.0
+
+## v0.3.1 /2025-03-31
+
+## What's Changed
+* Add all python interpreters for build by @roman-opentensor in https://github.com/opentensor/bittensor-commit-reveal/pull/17
+* bumping version 0.3.1 by @roman-opentensor in https://github.com/opentensor/bittensor-commit-reveal/pull/19
+
+**Full Changelog**: https://github.com/opentensor/bittensor-commit-reveal/compare/v0.3.0...v0.3.1
+
+## v0.3.0 /2025-03-31
+
+## What's Changed
+* Add `get_encrypted_commitment` by @roman-opentensor in https://github.com/opentensor/bittensor-commit-reveal/pull/15
+
+**Full Changelog**: https://github.com/opentensor/bittensor-commit-reveal/compare/v0.2.0...v0.3.0
+
 ## v0.2.0 /2025-01-15
 
 ## What's Changed
