@@ -31,7 +31,7 @@ const ENDPOINTS: [&str; 5] = [
     "https://api.drand.secureweb3.com:6875",
 ];
 
-#[derive(Encode)]
+#[derive(Encode, Decode, Debug, PartialEq)]
 pub struct WeightsTlockPayload {
     pub uids: Vec<u16>,
     pub values: Vec<u16>,
@@ -381,4 +381,91 @@ pub fn get_reveal_round_signature(
     };
 
     Ok(Some(response.signature))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use codec::Decode;
+
+    #[test]
+    fn test_encrypt_and_decrypt_static_key() {
+        let message = b"hello, bittensor!";
+        let reveal_round = 17200000; // произвольный старый round, доступный в Quicknet
+
+        let encrypted =
+            encrypt_and_compress(message, reveal_round).expect("Encryption should succeed");
+
+        let signature_hex = get_reveal_round_signature(Some(reveal_round), false)
+            .expect("Should get signature")
+            .expect("Signature should not be None");
+
+        let signature_bytes = hex::decode(&signature_hex).expect("Hex decoding failed");
+
+        let decrypted = decrypt_and_decompress(&encrypted, &signature_bytes)
+            .expect("Decryption should succeed");
+
+        assert_eq!(message.to_vec(), decrypted);
+    }
+
+    #[test]
+    fn test_get_round_info_and_signature() {
+        let round = 17200000;
+        let info = get_round_info(Some(round)).expect("Drand round should be available");
+
+        assert_eq!(info.round, round);
+        assert!(!info.signature.is_empty());
+
+        let sig = get_reveal_round_signature(Some(round), false).unwrap();
+        assert!(sig.is_some());
+    }
+
+    #[test]
+    fn test_encrypt_commitment_format() {
+        let data = "example string";
+        let (encrypted, round) = encrypt_commitment(data, 10, 12.0).expect("Encryption failed");
+        assert!(!encrypted.is_empty());
+        assert!(round > 0);
+    }
+
+    #[test]
+    fn test_generate_commit_structure() {
+        let uids = vec![1, 2, 3];
+        let values = vec![100, 200, 300];
+        let version_key = 42;
+        let tempo = 20;
+        let current_block = 1000;
+        let netuid = 1;
+        let reveal_epochs = 3;
+
+        let (encrypted, reveal_round) = generate_commit(
+            uids.clone(),
+            values.clone(),
+            version_key,
+            tempo,
+            current_block,
+            netuid,
+            reveal_epochs,
+            12.0,
+        )
+        .expect("Commit generation failed");
+
+        assert!(!encrypted.is_empty());
+        assert!(reveal_round > 0);
+
+        let decrypted_signature = get_reveal_round_signature(Some(reveal_round), true)
+            .unwrap_or(None)
+            .unwrap_or_default();
+
+        if !decrypted_signature.is_empty() {
+            let sig_bytes = hex::decode(&decrypted_signature).unwrap();
+            let plaintext = decrypt_and_decompress(&encrypted, &sig_bytes).unwrap();
+            let payload = WeightsTlockPayload::decode(&mut &plaintext[..])
+                .expect("Decoded payload must be valid");
+
+            assert_eq!(payload.uids, uids);
+            assert_eq!(payload.values, values);
+            assert_eq!(payload.version_key, version_key);
+        }
+    }
 }
