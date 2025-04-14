@@ -30,9 +30,9 @@ def test_get_encrypted_commits():
     )
 
     # Basic checks
-    assert (
-        ct_pybytes is not None and len(ct_pybytes) > 0
-    ), "Ciphertext should not be empty"
+    assert ct_pybytes is not None and len(ct_pybytes) > 0, (
+        "Ciphertext should not be empty"
+    )
     assert reveal_round > 0, "Reveal round should be positive"
 
     expected_reveal_round, _, _ = compute_expected_reveal_round(
@@ -40,9 +40,9 @@ def test_get_encrypted_commits():
     )
 
     # The reveal_round should be close to what we predict
-    assert (
-        abs(reveal_round - expected_reveal_round) <= 1
-    ), f"Reveal round {reveal_round} not close to expected {expected_reveal_round}"
+    assert abs(reveal_round - expected_reveal_round) <= 1, (
+        f"Reveal round {reveal_round} not close to expected {expected_reveal_round}"
+    )
 
 
 def test_generate_commit_success():
@@ -67,9 +67,9 @@ def test_generate_commit_success():
         block_time,
     )
 
-    assert (
-        ct_pybytes is not None and len(ct_pybytes) > 0
-    ), "Ciphertext should not be empty"
+    assert ct_pybytes is not None and len(ct_pybytes) > 0, (
+        "Ciphertext should not be empty"
+    )
     assert reveal_round > 0, "Reveal round should be positive"
 
     expected_reveal_round, expected_reveal_time, time_until_reveal = (
@@ -83,9 +83,9 @@ def test_generate_commit_success():
         )
     )
 
-    assert (
-        abs(reveal_round - expected_reveal_round) <= 1
-    ), f"Reveal round {reveal_round} differs from expected {expected_reveal_round}"
+    assert abs(reveal_round - expected_reveal_round) <= 1, (
+        f"Reveal round {reveal_round} differs from expected {expected_reveal_round}"
+    )
 
     required_lead_time = SUBTENSOR_PULSE_DELAY * PERIOD
     computed_reveal_time = (
@@ -96,9 +96,9 @@ def test_generate_commit_success():
         f"computed_reveal_time={computed_reveal_time}, start_time={start_time}, required={required_lead_time}"
     )
 
-    assert (
-        time_until_reveal >= SUBTENSOR_PULSE_DELAY * PERIOD
-    ), f"time_until_reveal {time_until_reveal} is less than required {SUBTENSOR_PULSE_DELAY * PERIOD}"
+    assert time_until_reveal >= SUBTENSOR_PULSE_DELAY * PERIOD, (
+        f"time_until_reveal {time_until_reveal} is less than required {SUBTENSOR_PULSE_DELAY * PERIOD}"
+    )
 
 
 @pytest.mark.asyncio
@@ -106,7 +106,7 @@ async def test_generate_commit_various_tempos():
     NETUID = 1
     CURRENT_BLOCK = 100_000
     SUBNET_REVEAL_PERIOD_EPOCHS = 1
-    BLOCK_TIME = 6
+    BLOCK_TIME = 12
     TEMPOS = [10, 50, 100, 250, 360, 500, 750, 1000]
 
     uids = [0]
@@ -139,9 +139,9 @@ async def test_generate_commit_various_tempos():
             BLOCK_TIME,
         )
 
-        assert (
-            abs(reveal_round - expected_reveal_round) <= 1
-        ), f"Tempo {tempo}: reveal_round {reveal_round} not close to expected {expected_reveal_round}"
+        assert abs(reveal_round - expected_reveal_round) <= 1, (
+            f"Tempo {tempo}: reveal_round {reveal_round} not close to expected {expected_reveal_round}"
+        )
 
     computed_reveal_time = (
         GENESIS_TIME + (reveal_round + SUBTENSOR_PULSE_DELAY) * PERIOD
@@ -183,5 +183,7 @@ def compute_expected_reveal_round(
         time_until_reveal = blocks_until_reveal * block_time
 
     reveal_time = now + time_until_reveal
-    reveal_round = ((reveal_time - GENESIS_TIME + PERIOD - 1) // PERIOD) - SUBTENSOR_PULSE_DELAY
+    reveal_round = (
+        (reveal_time - GENESIS_TIME + PERIOD - 1) // PERIOD
+    ) - SUBTENSOR_PULSE_DELAY
     return reveal_round, reveal_time, time_until_reveal

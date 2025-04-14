@@ -1,10 +1,10 @@
 [project]
 name = "bittensor-commit-reveal"
-version = "0.3.1"
+version = "0.4.0"
 description = ""
 readme = "README.md"
 license = {file = "LICENSE"}
-keywords = ["substrate", "scale", "codec", "bittensor", "commit reveal"]
+keywords = ["substrate", "scale", "codec", "bittensor", "commit reveal", "drand", "TLE"]
 
 dependencies = []
 requires-python = ">= 3.9"
@@ -42,7 +42,7 @@ requires = ["maturin>=1.0,<2.0"]
 build-backend = "maturin"
 
 [tool.maturin]
-include = ["src*"]
+include = ["bittensor_commit_reveal*", "src*"]
 exclude = ["tests*"]
 
 [project.optional-dependencies]
