@@ -154,6 +154,7 @@ async def test_generate_commit_various_tempos():
             f"start_time={start_time}, required={required_lead_time}"
         )
 
+
 def compute_expected_reveal_round(
     now: int,
     tempo: int,
