@@ -1,43 +1,9 @@
 # Usage
-Python package `bittensor_commit_reveal` has one function.
+Python package `bittensor_drand` has one function.
 
 ```python
-from bittensor_commit_reveal import get_encrypted_commit
+from bittensor_drand import get_encrypted_commit
 ```
-
-## Function docstring
-The function could be considered like this:
-```python
-def get_encrypted_commit(
-        uids: Union[NDArray[np.int64], "torch.LongTensor"], 
-        weights: Union[NDArray[np.float32], "torch.FloatTensor"], 
-        version_key: int, 
-        tempo: int, 
-        current_block: int, 
-        netuid: int, 
-        subnet_reveal_period_epochs: int, 
-        block_time: int = 12
-) -> tuple[bytes, int]:
-"""Returns encrypted commit and target round for `commit_crv3_weights` extrinsic.
-
-    Arguments:
-        uids: The uids to commit.
-        weights: The weights associated with the uids.
-        version_key: The version key to use for committing and revealing. Default is `bittensor.core.settings.version_as_int`.
-        tempo: Number of blocks in one epoch.
-        current_block: The current block number in the network.
-        netuid: The network unique identifier (NetUID) for the subnet.
-        subnet_reveal_period_epochs: Number of epochs after which the reveal will be performed. Corresponds to the hyperparameter `commit_reveal_weights_interval` of the subnet. In epochs.
-        block_time: Amount of time in seconds for one block. Defaults to 12 seconds.
-
-    Returns:
-        commit (bytes): Raw bytes of the encrypted, and compressed uids & weights values for setting weights.
-        target_round (int): Drand round number when weights have to be revealed. Based on Drand Quicknet network.
-    """
-# function logic
-return commit, target_round
-```
-
 
 To test the function in your terminal:
 1. Spin up a local subtensor branch which includes CR3
@@ -58,7 +24,7 @@ ipython
 then copy-past to ipython
 ```python
 import numpy as np
-import bittensor_commit_reveal as crv3
+import bittensor_drand as crv3
 from bittensor.utils.weight_utils import convert_weights_and_uids_for_emit
 import bittensor as bt
 
