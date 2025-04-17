@@ -1,6 +1,6 @@
 import pytest
 import time
-from bittensor_commit_reveal import get_encrypted_commit
+from bittensor_drand import get_encrypted_commit
 
 SUBTENSOR_PULSE_DELAY = 24
 PERIOD = 3  # Drand period in seconds
