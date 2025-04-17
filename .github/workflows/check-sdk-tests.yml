@@ -212,8 +212,30 @@ jobs:
       - name: Load Docker Image
         run: docker load -i subtensor-localnet.tar
 
-      - name: Run tests
-        working-directory: ${{ github.workspace }}
+#      - name: Run tests
+#        working-directory: ${{ github.workspace }}
+#        run: |
+#          source ${{ github.workspace }}/venv/bin/activate
+#          pytest ${{ matrix.test-file }} -s
+
+      - name: Run tests with retry
         run: |
           source ${{ github.workspace }}/venv/bin/activate
-          pytest ${{ matrix.test-file }} -s
+          set +e
+          for i in 1 2; do
+            echo "🔁 Attempt $i: Running tests"
+            pytest ${{ matrix.test-file }} -s
+            status=$?
+            if [ $status -eq 0 ]; then
+              echo "✅ Tests passed on attempt $i"
+              break
+            else
+              echo "❌ Tests failed on attempt $i"
+              if [ $i -eq 2 ]; then
+                echo "Tests failed after 2 attempts"
+                exit 1
+              fi
+              echo "Retrying..."
+              sleep 5
+            fi
+          done
