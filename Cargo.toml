@@ -1,10 +1,10 @@
 [package]
-name = "bittensor-commit-reveal"
-version = "0.4.0"
+name = "bittensor-drand"
+version = "0.5.0"
 edition = "2021"
 
 [lib]
-name = "bittensor_commit_reveal"
+name = "bittensor_drand"
 crate-type = ["cdylib"]
 
 [dependencies]

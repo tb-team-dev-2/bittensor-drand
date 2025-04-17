@@ -1,6 +1,6 @@
 [project]
-name = "bittensor-commit-reveal"
-version = "0.4.0"
+name = "bittensor_drand"
+version = "0.5.0"
 description = ""
 readme = "README.md"
 license = {file = "LICENSE"}
@@ -35,14 +35,14 @@ classifiers = [
 ]
 
 [project.urls]
-Repository = "https://github.com/opentensor/bittensor-commit-reveal"
+Repository = "https://github.com/opentensor/bittensor-drand"
 
 [build-system]
 requires = ["maturin>=1.0,<2.0"]
 build-backend = "maturin"
 
 [tool.maturin]
-include = ["bittensor_commit_reveal*", "src*"]
+include = ["bittensor_drand*", "src*"]
 exclude = ["tests*"]
 
 [project.optional-dependencies]
