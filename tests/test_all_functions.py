@@ -1,5 +1,5 @@
 import time
-import bittensor_commit_reveal as btcr
+import bittensor_drand as btcr
 
 
 def test_get_latest_round():
