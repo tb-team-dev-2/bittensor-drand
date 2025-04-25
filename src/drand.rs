@@ -4,6 +4,7 @@ use codec::{Decode, Encode};
 use rand_core::OsRng;
 use serde::Deserialize;
 use sha2::Digest;
+use std::os::raw::c_char;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tle::{
     curves::drand::TinyBLS381,
@@ -381,6 +382,38 @@ pub fn get_reveal_round_signature(
     };
 
     Ok(Some(response.signature))
+}
+
+const PUBLIC_KEY_HEX: &[u8] = b"83cf0f2896adee7eb8b5f01fcad3912212c437e0073e911fb90022d3e760183c\
+      8c4b450b6a0a6c3ac6a5776a2d1064510d1fec758c921cc22b0e17e63aaf4bcb\
+      5ed66304de9cf809bd274ca73bab4af5a6e9c76a4bc09e76eae8991ef5ece45a\0";
+
+#[no_mangle]
+pub extern "C" fn drand_public_key_hex() -> *const c_char {
+    PUBLIC_KEY_HEX.as_ptr() as *const c_char
+}
+
+const CHAIN_HASH: &[u8] = b"52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971\0";
+
+#[no_mangle]
+pub extern "C" fn drand_chain_hash() -> *const c_char {
+    CHAIN_HASH.as_ptr() as *const c_char
+}
+
+#[no_mangle]
+pub extern "C" fn drand_endpoint(idx: usize) -> *const c_char {
+    const ENDPOINTS: [&[u8]; 5] = [
+        b"https://api.drand.sh\0",
+        b"https://api2.drand.sh\0",
+        b"https://api3.drand.sh\0",
+        b"https://drand.cloudflare.com\0",
+        b"https://api.drand.secureweb3.com:6875\0",
+    ];
+    if idx >= ENDPOINTS.len() {
+        std::ptr::null()
+    } else {
+        ENDPOINTS[idx].as_ptr() as *const c_char
+    }
 }
 
 #[cfg(test)]
