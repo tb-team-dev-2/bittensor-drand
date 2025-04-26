@@ -2,6 +2,7 @@ name: Bittensor SDK Test
 
 permissions:
   pull-requests: write
+  issues: write
   contents: read
 
 concurrency:
