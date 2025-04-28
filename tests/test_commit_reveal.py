@@ -1,6 +1,6 @@
 import pytest
 import time
-from bittensor_commit_reveal import get_encrypted_commit
+from bittensor_drand import get_encrypted_commit
 
 SUBTENSOR_PULSE_DELAY = 24
 PERIOD = 3  # Drand period in seconds
@@ -153,6 +153,7 @@ async def test_generate_commit_various_tempos():
             f"Not enough lead time: reveal_time={computed_reveal_time}, "
             f"start_time={start_time}, required={required_lead_time}"
         )
+
 
 def compute_expected_reveal_round(
     now: int,

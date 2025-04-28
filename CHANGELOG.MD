@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.5.0 /2025-04-28
+
+## What's Changed
+* Rename package to `bittensor-drand` by @basfroman in https://github.com/opentensor/bittensor-drand/pull/25
+* update imports in README.md by @basfroman in https://github.com/opentensor/bittensor-drand/pull/26
+* feat: implement ffi , generate C headers by @distributedstatemachine in https://github.com/opentensor/bittensor-drand/pull/27
+* Add permissions by @basfroman in https://github.com/opentensor/bittensor-drand/pull/28
+
+## New Contributors
+* @distributedstatemachine made their first contribution in https://github.com/opentensor/bittensor-drand/pull/27
+
 ## v0.4.0 /2025-04-14
 
 ## What's Changed

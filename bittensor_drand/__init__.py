@@ -1,6 +1,6 @@
 from typing import Union, Optional
 
-from bittensor_commit_reveal.bittensor_commit_reveal import (
+from bittensor_drand.bittensor_drand import (
     get_encrypted_commit as _get_encrypted_commit,
     get_encrypted_commitment as _get_encrypted_commitment,
     encrypt as _encrypt,
@@ -105,21 +105,6 @@ def decrypt(encrypted_data: bytes, no_errors: bool = True) -> Optional[bytes]:
         ValueError: If decryption fails and no_errors is False.
     """
     return _decrypt(encrypted_data, no_errors)
-
-
-def get_reveal_round_signature(round_number: Optional[int] = None) -> Optional[str]:
-    """Gets the signature for a specific Drand round.
-
-    Arguments:
-        round_number: The Drand round number to get the signature for. If None, uses the latest round.
-
-    Returns:
-        signature (Optional[str]): The signature for the specified round, or None if not available.
-
-    Raises:
-        ValueError: If fetching the signature fails.
-    """
-    return _get_reveal_round_signature(round_number)
 
 
 def get_latest_round() -> int:

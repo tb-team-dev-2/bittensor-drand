@@ -199,7 +199,7 @@ fn decrypt(py: Python, encrypted_data: &[u8], no_errors: bool) -> PyResult<Optio
 }
 
 #[pymodule]
-fn bittensor_commit_reveal(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn bittensor_drand(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(get_encrypted_commit, m)?)?;
     m.add_function(wrap_pyfunction!(get_encrypted_commitment, m)?)?;
     m.add_function(wrap_pyfunction!(encrypt, m)?)?;
