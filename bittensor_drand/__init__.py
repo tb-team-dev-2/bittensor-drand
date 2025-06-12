@@ -17,7 +17,7 @@ def get_encrypted_commit(
     current_block: int,
     netuid: int,
     subnet_reveal_period_epochs: int,
-    block_time: int = 12,
+    block_time: Union[int, float] = 12,
 ) -> tuple[bytes, int]:
     """Returns encrypted commit and target round for `commit_crv3_weights` extrinsic.
 
@@ -32,7 +32,7 @@ def get_encrypted_commit(
         block_time: Amount of time in seconds for one block. Defaults to 12 seconds.
 
     Returns:
-        commit (bytes): Raw bytes of the encrypted, and compressed uids & weights values for setting weights.
+        commit (bytes): Raw bytes of the encrypted and compressed uids & weights values for setting weights.
         target_round (int): Drand round number when weights have to be revealed. Based on Drand Quicknet network.
 
     Raises:
