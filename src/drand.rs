@@ -14,7 +14,7 @@ use tle::{
 };
 use w3f_bls::EngineBLS;
 
-pub const SUBTENSOR_PULSE_DELAY: u64 = 24; //Drand rounds amount
+pub const SUBTENSOR_PULSE_DELAY: u64 = 12;
 const PUBLIC_KEY: &str = "83cf0f2896adee7eb8b5f01fcad3912212c437e0073e911fb90022d3e760183c8c4b450b6a0a6c3ac6a5776a2d1064510d1fec758c921cc22b0e17e63aaf4bcb5ed66304de9cf809bd274ca73bab4af5a6e9c76a4bc09e76eae8991ef5ece45a";
 pub const GENESIS_TIME: u64 = 1692803367;
 pub const DRAND_PERIOD: u64 = 3;
@@ -196,44 +196,66 @@ pub fn generate_commit(
     subnet_reveal_period_epochs: u64,
     block_time: f64,
 ) -> Result<(Vec<u8>, u64), (std::io::Error, String)> {
-    // Steps comes from here https://github.com/opentensor/subtensor/pull/982/files#diff-7261bf1c7f19fc66a74c1c644ec2b4b277a341609710132fb9cd5f622350a6f5R120-R131
+    // ──────────────────────────────────────────────────────────────────────
+    // 1 ▸ first block of the reveal epoch
+    // ──────────────────────────────────────────────────────────────────────
+    let tempo_plus_one = tempo + 1;
+    let netuid_plus_one = (netuid as u64) + 1;
+    let current_epoch = (current_block + netuid_plus_one) / tempo_plus_one;
 
-    // Instantiate payload
+    let reveal_epoch = current_epoch + subnet_reveal_period_epochs;
+    let first_reveal_blk = reveal_epoch * tempo_plus_one - netuid_plus_one;
+    let blocks_until_reveal = first_reveal_blk.saturating_sub(current_block);
+    let secs_until_reveal = blocks_until_reveal as f64 * block_time;
+
+    // ──────────────────────────────────────────────────────────────────────
+    // 2 ▸ ensure slack between now and the epoch boundary; otherwise defer by 1 epoch.
+    // ──────────────────────────────────────────────────────────────────────
+    let block_slack_rounds =
+        ((block_time / DRAND_PERIOD as f64).ceil() as u64).max(SUBTENSOR_PULSE_DELAY);
+    let slack_secs = block_slack_rounds as f64 * DRAND_PERIOD as f64;
+
+    if secs_until_reveal < slack_secs {
+        // Not enough buffer -> postpone by one epoch and recurse
+        return generate_commit(
+            uids,
+            values,
+            version_key,
+            tempo,
+            current_block,
+            netuid,
+            subnet_reveal_period_epochs + 1,
+            block_time,
+        );
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // 3 ▸ identify WHEN the pulse must be emitted
+    // ──────────────────────────────────────────────────────────────────────
+    let now_secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs_f64();
+
+    let target_secs = now_secs + secs_until_reveal - (2.0 * block_time) - slack_secs;
+
+    // Round ***down*** so we never request a not‑yet‑ingested pulse.
+    let mut reveal_round =
+        ((target_secs - GENESIS_TIME as f64) / DRAND_PERIOD as f64).floor() as u64;
+
+    if reveal_round == 0 {
+        reveal_round = 1;
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // 4 ▸ encrypt the commit against that round
+    // ──────────────────────────────────────────────────────────────────────
     let payload = WeightsTlockPayload {
         uids,
         values,
         version_key,
     };
-    let serialized_payload = payload.encode();
-
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs_f64();
-
-    let tempo_plus_one = tempo + 1;
-    let netuid_plus_one = (netuid as u64) + 1;
-    let block_with_offset = current_block + netuid_plus_one;
-    let current_epoch = block_with_offset / tempo_plus_one;
-
-    let mut reveal_epoch = current_epoch + subnet_reveal_period_epochs;
-    let mut reveal_block_number = reveal_epoch * tempo_plus_one - netuid_plus_one;
-    let mut blocks_until_reveal = reveal_block_number - current_block;
-    let mut time_until_reveal = (blocks_until_reveal as f64) * block_time;
-
-    //
-    while time_until_reveal < (SUBTENSOR_PULSE_DELAY * DRAND_PERIOD) as f64 {
-        reveal_epoch += 1;
-        reveal_block_number = reveal_epoch * tempo_plus_one - netuid_plus_one;
-        blocks_until_reveal = reveal_block_number - current_block;
-        time_until_reveal = (blocks_until_reveal as f64) * block_time;
-    }
-
-    let reveal_time = now + time_until_reveal;
-    let reveal_round = ((reveal_time - GENESIS_TIME as f64) / DRAND_PERIOD as f64).ceil() as u64
-        - SUBTENSOR_PULSE_DELAY;
-
-    let ct_bytes = encrypt_and_compress(&serialized_payload, reveal_round)?;
+    let ct_bytes = encrypt_and_compress(&payload.encode(), reveal_round)?;
 
     Ok((ct_bytes, reveal_round))
 }
