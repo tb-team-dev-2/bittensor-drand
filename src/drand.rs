@@ -1,7 +1,7 @@
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use codec::{Decode, Encode};
 
-use rand_core::OsRng;
+use rand_core::{OsRng, RngCore};
 use serde::Deserialize;
 use sha2::Digest;
 use std::os::raw::c_char;
@@ -94,7 +94,8 @@ pub fn encrypt_and_compress(
     let identity = Identity::new(b"", vec![message]);
 
     // Encrypt payload
-    let esk = [2; 32];
+    let mut esk = [0u8; 32];
+    OsRng.fill_bytes(&mut esk);
     let ct = tle::<TinyBLS381, AESGCMStreamCipherProvider, OsRng>(
         pub_key,
         esk,
