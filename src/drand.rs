@@ -34,6 +34,7 @@ const ENDPOINTS: [&str; 5] = [
 
 #[derive(Encode, Decode, Debug, PartialEq)]
 pub struct WeightsTlockPayload {
+    pub hotkey: Vec<u8>,
     pub uids: Vec<u16>,
     pub values: Vec<u16>,
     pub version_key: u64,
@@ -179,6 +180,7 @@ pub fn decrypt_and_decompress(
 /// * `netuid` - A u16 representing the network's unique identifier.
 /// * `subnet_reveal_period_epochs` - A u64 indicating the number of epochs before reveal.
 /// * `block_time` - Duration of each block in seconds as u64.
+/// * `hotkey` - The hotkey of the committing validator
 ///
 /// # Returns
 ///
@@ -195,6 +197,7 @@ pub fn generate_commit(
     netuid: u16,
     subnet_reveal_period_epochs: u64,
     block_time: f64,
+    hotkey: Vec<u8>,
 ) -> Result<(Vec<u8>, u64), (std::io::Error, String)> {
     // ──────────────────────────────────────────────────────────────────────
     // 1 ▸ first block of the reveal epoch
@@ -251,6 +254,7 @@ pub fn generate_commit(
     // 4 ▸ encrypt the commit against that round
     // ──────────────────────────────────────────────────────────────────────
     let payload = WeightsTlockPayload {
+        hotkey,
         uids,
         values,
         version_key,
@@ -493,6 +497,7 @@ mod tests {
         let current_block = 1000;
         let netuid = 1;
         let reveal_epochs = 3;
+        let hotkey = vec![1000, 2000, 3000];
 
         let (encrypted, reveal_round) = generate_commit(
             uids.clone(),
@@ -503,6 +508,7 @@ mod tests {
             netuid,
             reveal_epochs,
             12.0,
+            hotkey.clone()
         )
         .expect("Commit generation failed");
 
@@ -522,6 +528,7 @@ mod tests {
             assert_eq!(payload.uids, uids);
             assert_eq!(payload.values, values);
             assert_eq!(payload.version_key, version_key);
+            assert_eq!(payload.hotkey, hotkey)
         }
     }
 }
