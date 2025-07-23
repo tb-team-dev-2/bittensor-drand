@@ -229,6 +229,7 @@ pub fn generate_commit(
             netuid,
             subnet_reveal_period_epochs + 1,
             block_time,
+            hotkey,
         );
     }
 
