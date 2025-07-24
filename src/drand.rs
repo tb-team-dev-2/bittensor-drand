@@ -34,6 +34,7 @@ const ENDPOINTS: [&str; 5] = [
 
 #[derive(Encode, Decode, Debug, PartialEq)]
 pub struct WeightsTlockPayload {
+    pub hotkey: Vec<u8>,
     pub uids: Vec<u16>,
     pub values: Vec<u16>,
     pub version_key: u64,
@@ -179,6 +180,7 @@ pub fn decrypt_and_decompress(
 /// * `netuid` - A u16 representing the network's unique identifier.
 /// * `subnet_reveal_period_epochs` - A u64 indicating the number of epochs before reveal.
 /// * `block_time` - Duration of each block in seconds as u64.
+/// * `hotkey` - The hotkey of the committing validator
 ///
 /// # Returns
 ///
@@ -195,39 +197,33 @@ pub fn generate_commit(
     netuid: u16,
     subnet_reveal_period_epochs: u64,
     block_time: f64,
+    hotkey: Vec<u8>,
 ) -> Result<(Vec<u8>, u64), (std::io::Error, String)> {
     // ──────────────────────────────────────────────────────────────────────
-    // 1 ▸ first block of the reveal epoch
+    // 1 ▸ calculate the reveal epoch and the first block of the pre-reveal epoch
     // ──────────────────────────────────────────────────────────────────────
-    let tempo_plus_one = tempo + 1;
-    let netuid_plus_one = (netuid as u64) + 1;
-    let current_epoch = (current_block + netuid_plus_one) / tempo_plus_one;
-
-    let reveal_epoch = current_epoch + subnet_reveal_period_epochs;
-    let first_reveal_blk = reveal_epoch * tempo_plus_one - netuid_plus_one;
-    let blocks_until_reveal = first_reveal_blk.saturating_sub(current_block);
-    let secs_until_reveal = blocks_until_reveal as f64 * block_time;
+    let tempo: i64 = tempo as i64;
+    let current_block: i64 = current_block as i64;
+    let netuid: i64 = netuid as i64;
+    let subnet_reveal_period_epochs: i64 = subnet_reveal_period_epochs as i64;
+    let tempo_plus_one: i64 = tempo + 1;
+    let netuid_plus_one: i64 = netuid + 1;
+    let current_epoch: i64 = (current_block + netuid_plus_one) / tempo_plus_one;
+    let reveal_epoch: i64 = current_epoch + subnet_reveal_period_epochs;
+    let pre_reveal_epoch: i64 = reveal_epoch - 1;
+    let first_pre_reveal_blk: i64 = pre_reveal_epoch * tempo_plus_one - netuid_plus_one;
 
     // ──────────────────────────────────────────────────────────────────────
-    // 2 ▸ ensure slack between now and the epoch boundary; otherwise defer by 1 epoch.
+    // 2 ▸ calculate slack for buffer into the ingest epoch
     // ──────────────────────────────────────────────────────────────────────
     let block_slack_rounds =
         ((block_time / DRAND_PERIOD as f64).ceil() as u64).max(SUBTENSOR_PULSE_DELAY);
     let slack_secs = block_slack_rounds as f64 * DRAND_PERIOD as f64;
 
-    if secs_until_reveal < slack_secs {
-        // Not enough buffer -> postpone by one epoch and recurse
-        return generate_commit(
-            uids,
-            values,
-            version_key,
-            tempo,
-            current_block,
-            netuid,
-            subnet_reveal_period_epochs + 1,
-            block_time,
-        );
-    }
+    // Set target ingest to the first block +1
+    let target_ingest_blk: i64 = first_pre_reveal_blk + 1;
+    let blocks_until_reveal: i64 = target_ingest_blk - current_block;
+    let secs_until_reveal: f64 = blocks_until_reveal as f64 * block_time;
 
     // ──────────────────────────────────────────────────────────────────────
     // 3 ▸ identify WHEN the pulse must be emitted
@@ -237,13 +233,13 @@ pub fn generate_commit(
         .unwrap()
         .as_secs_f64();
 
-    let target_secs = now_secs + secs_until_reveal - (2.0 * block_time) - slack_secs;
+    let target_secs = now_secs + secs_until_reveal - slack_secs;
 
     // Round ***down*** so we never request a not‑yet‑ingested pulse.
     let mut reveal_round =
-        ((target_secs - GENESIS_TIME as f64) / DRAND_PERIOD as f64).floor() as u64;
+        ((target_secs - GENESIS_TIME as f64) / DRAND_PERIOD as f64).floor() as i64;
 
-    if reveal_round == 0 {
+    if reveal_round < 1 {
         reveal_round = 1;
     }
 
@@ -251,15 +247,15 @@ pub fn generate_commit(
     // 4 ▸ encrypt the commit against that round
     // ──────────────────────────────────────────────────────────────────────
     let payload = WeightsTlockPayload {
+        hotkey,
         uids,
         values,
         version_key,
     };
-    let ct_bytes = encrypt_and_compress(&payload.encode(), reveal_round)?;
+    let ct_bytes = encrypt_and_compress(&payload.encode(), reveal_round as u64)?;
 
-    Ok((ct_bytes, reveal_round))
+    Ok((ct_bytes, reveal_round as u64))
 }
-
 /// Encrypts a string-based commitment using Drand timelock encryption for a future reveal round.
 ///
 /// This function encodes the input `data` and calculates the corresponding Drand round number
@@ -493,6 +489,7 @@ mod tests {
         let current_block = 1000;
         let netuid = 1;
         let reveal_epochs = 3;
+        let hotkey = vec![1000, 2000, 3000];
 
         let (encrypted, reveal_round) = generate_commit(
             uids.clone(),
@@ -503,6 +500,7 @@ mod tests {
             netuid,
             reveal_epochs,
             12.0,
+            hotkey.clone()
         )
         .expect("Commit generation failed");
 
@@ -522,6 +520,7 @@ mod tests {
             assert_eq!(payload.uids, uids);
             assert_eq!(payload.values, values);
             assert_eq!(payload.version_key, version_key);
+            assert_eq!(payload.hotkey, hotkey)
         }
     }
 }
