@@ -17,7 +17,8 @@ def get_encrypted_commit(
     current_block: int,
     netuid: int,
     subnet_reveal_period_epochs: int,
-    block_time: Union[int, float] = 12,
+    block_time: Union[int, float],
+    hotkey: str,
 ) -> tuple[bytes, int]:
     """Returns encrypted commit and target round for `commit_crv3_weights` extrinsic.
 
@@ -30,6 +31,7 @@ def get_encrypted_commit(
         netuid: The network unique identifier (NetUID) for the subnet.
         subnet_reveal_period_epochs: Number of epochs after which the reveal will be performed. Corresponds to the hyperparameter `commit_reveal_weights_interval` of the subnet. In epochs.
         block_time: Amount of time in seconds for one block. Defaults to 12 seconds.
+        hotkey: The hotkey of the committing neuron.
 
     Returns:
         commit (bytes): Raw bytes of the encrypted and compressed uids & weights values for setting weights.
@@ -47,6 +49,7 @@ def get_encrypted_commit(
         netuid,
         subnet_reveal_period_epochs,
         block_time,
+        hotkey
     )
 
 

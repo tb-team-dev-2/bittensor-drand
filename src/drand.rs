@@ -489,7 +489,7 @@ mod tests {
         let current_block = 1000;
         let netuid = 1;
         let reveal_epochs = 3;
-        let hotkey = vec![1000, 2000, 3000];
+        let hotkey = vec![1, 2, 3];
 
         let (encrypted, reveal_round) = generate_commit(
             uids.clone(),
