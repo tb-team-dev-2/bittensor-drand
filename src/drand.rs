@@ -199,62 +199,76 @@ pub fn generate_commit(
     block_time: f64,
     hotkey: Vec<u8>,
 ) -> Result<(Vec<u8>, u64), (std::io::Error, String)> {
-    // ──────────────────────────────────────────────────────────────────────
-    // 1 ▸ calculate the reveal epoch and the first block of the pre-reveal epoch
-    // ──────────────────────────────────────────────────────────────────────
-    let tempo: i64 = tempo as i64;
-    let current_block: i64 = current_block as i64;
-    let netuid: i64 = netuid as i64;
-    let subnet_reveal_period_epochs: i64 = subnet_reveal_period_epochs as i64;
-    let tempo_plus_one: i64 = tempo + 1;
-    let netuid_plus_one: i64 = netuid + 1;
-    let current_epoch: i64 = (current_block + netuid_plus_one) / tempo_plus_one;
-    let reveal_epoch: i64 = current_epoch + subnet_reveal_period_epochs;
-    let pre_reveal_epoch: i64 = reveal_epoch - 1;
-    let first_pre_reveal_blk: i64 = pre_reveal_epoch * tempo_plus_one - netuid_plus_one;
+    //----------------------------------------------------------------------
+    // 1 ▸ derive current & reveal epochs and the first block of the
+    //     reveal epoch according to the pallet’s logic
+    //----------------------------------------------------------------------
+    let tempo_plus_one = tempo.saturating_add(1);
+    let netuid_plus_one = netuid as u64 + 1;
 
-    // ──────────────────────────────────────────────────────────────────────
-    // 2 ▸ calculate slack for buffer into the ingest epoch
-    // ──────────────────────────────────────────────────────────────────────
+    // epoch index of `current_block`
+    let current_epoch = (current_block + netuid_plus_one) / tempo_plus_one;
+
+    // epoch index in which the commit must be revealed
+    let reveal_epoch = current_epoch + subnet_reveal_period_epochs;
+
+    // very first block *inside* the reveal epoch
+    let first_reveal_blk = reveal_epoch
+        .saturating_mul(tempo_plus_one)
+        .saturating_sub(netuid_plus_one);
+
+    //----------------------------------------------------------------------
+    // 2 ▸ decide in which *block* we want the pulse to be ingested
+    //     – we aim for **first_reveal_blk + 1** (block 0 may run on‑initialize
+    //       before the commit is included)
+    //----------------------------------------------------------------------
+    let target_ingest_blk = first_reveal_blk.saturating_add(1);
+
+    let blocks_until_ingest = target_ingest_blk.saturating_sub(current_block);
+
+    // seconds until that block is produced
+    let secs_until_ingest = blocks_until_ingest as f64 * block_time;
+
+    //----------------------------------------------------------------------
+    // 3 ▸ compute “slack” – how many DRAND periods we subtract so that the
+    //     pulse is definitely on‑chain when `target_ingest_blk` is produced.
+    //----------------------------------------------------------------------
     let block_slack_rounds =
-        ((block_time / DRAND_PERIOD as f64).ceil() as u64).max(SUBTENSOR_PULSE_DELAY);
+        ((block_time / DRAND_PERIOD as f64).ceil() as u64).max(SUBTENSOR_PULSE_DELAY); // <- extra guard
+
     let slack_secs = block_slack_rounds as f64 * DRAND_PERIOD as f64;
 
-    // Set target ingest to the first block +1
-    let target_ingest_blk: i64 = first_pre_reveal_blk + 1;
-    let blocks_until_reveal: i64 = target_ingest_blk - current_block;
-    let secs_until_reveal: f64 = blocks_until_reveal as f64 * block_time;
-
-    // ──────────────────────────────────────────────────────────────────────
-    // 3 ▸ identify WHEN the pulse must be emitted
-    // ──────────────────────────────────────────────────────────────────────
+    //----------------------------------------------------------------------
+    // 4 ▸ convert the desired timestamp into a DRAND round
+    //----------------------------------------------------------------------
     let now_secs = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_secs_f64();
 
-    let target_secs = now_secs + secs_until_reveal - slack_secs;
+    let target_secs = now_secs + secs_until_ingest - slack_secs;
 
     // Round ***down*** so we never request a not‑yet‑ingested pulse.
     let mut reveal_round =
-        ((target_secs - GENESIS_TIME as f64) / DRAND_PERIOD as f64).floor() as i64;
+        ((target_secs - GENESIS_TIME as f64) / DRAND_PERIOD as f64).floor() as u64;
 
     if reveal_round < 1 {
         reveal_round = 1;
     }
 
-    // ──────────────────────────────────────────────────────────────────────
-    // 4 ▸ encrypt the commit against that round
-    // ──────────────────────────────────────────────────────────────────────
+    //----------------------------------------------------------------------
+    // 5 ▸ build & encrypt payload
+    //----------------------------------------------------------------------
     let payload = WeightsTlockPayload {
         hotkey,
         uids,
         values,
         version_key,
     };
-    let ct_bytes = encrypt_and_compress(&payload.encode(), reveal_round as u64)?;
 
-    Ok((ct_bytes, reveal_round as u64))
+    let ct_bytes = encrypt_and_compress(&payload.encode(), reveal_round)?;
+
+    Ok((ct_bytes, reveal_round))
 }
 /// Encrypts a string-based commitment using Drand timelock encryption for a future reveal round.
 ///
@@ -500,7 +514,7 @@ mod tests {
             netuid,
             reveal_epochs,
             12.0,
-            hotkey.clone()
+            hotkey.clone(),
         )
         .expect("Commit generation failed");
 
