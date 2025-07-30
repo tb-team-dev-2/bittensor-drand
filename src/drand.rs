@@ -200,8 +200,7 @@ pub fn generate_commit(
     hotkey: Vec<u8>,
 ) -> Result<(Vec<u8>, u64), (std::io::Error, String)> {
     //----------------------------------------------------------------------
-    // 1 ▸ derive current & reveal epochs and the first block of the
-    //     reveal epoch according to the pallet’s logic
+    // 1 ▸ derive the first block of the reveal epoch
     //----------------------------------------------------------------------
     let tempo_plus_one = tempo.saturating_add(1);
     let netuid_plus_one = netuid as u64 + 1;
@@ -219,22 +218,17 @@ pub fn generate_commit(
 
     //----------------------------------------------------------------------
     // 2 ▸ decide in which *block* we want the pulse to be ingested
-    //     – we aim for **first_reveal_blk + 1** (block 0 may run on‑initialize
-    //       before the commit is included)
+    //     – we aim for first_reveal_blk + 1
     //----------------------------------------------------------------------
     let target_ingest_blk = first_reveal_blk.saturating_add(1);
-
     let blocks_until_ingest = target_ingest_blk.saturating_sub(current_block);
-
-    // seconds until that block is produced
     let secs_until_ingest = blocks_until_ingest as f64 * block_time;
 
-    //----------------------------------------------------------------------
-    // 3 ▸ compute “slack” – how many DRAND periods we subtract so that the
-    //     pulse is definitely on‑chain when `target_ingest_blk` is produced.
-    //----------------------------------------------------------------------
+    // ──────────────────────────────────────────────────────────────────────
+    // 3 ▸ identify WHEN the pulse must be emitted
+    // ──────────────────────────────────────────────────────────────────────
     let block_slack_rounds =
-        ((block_time / DRAND_PERIOD as f64).ceil() as u64).max(SUBTENSOR_PULSE_DELAY); // <- extra guard
+        ((block_time / DRAND_PERIOD as f64).ceil() as u64).max(SUBTENSOR_PULSE_DELAY);
 
     let slack_secs = block_slack_rounds as f64 * DRAND_PERIOD as f64;
 
