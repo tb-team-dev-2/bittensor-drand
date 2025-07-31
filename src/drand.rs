@@ -14,7 +14,6 @@ use tle::{
 };
 use w3f_bls::EngineBLS;
 
-pub const SUBTENSOR_PULSE_DELAY: u64 = 12;
 const PUBLIC_KEY: &str = "83cf0f2896adee7eb8b5f01fcad3912212c437e0073e911fb90022d3e760183c8c4b450b6a0a6c3ac6a5776a2d1064510d1fec758c921cc22b0e17e63aaf4bcb5ed66304de9cf809bd274ca73bab4af5a6e9c76a4bc09e76eae8991ef5ece45a";
 pub const GENESIS_TIME: u64 = 1692803367;
 pub const DRAND_PERIOD: u64 = 3;
@@ -224,23 +223,15 @@ pub fn generate_commit(
     let blocks_until_ingest = target_ingest_blk.saturating_sub(current_block);
     let secs_until_ingest = blocks_until_ingest as f64 * block_time;
 
-    // ──────────────────────────────────────────────────────────────────────
-    // 3 ▸ identify WHEN the pulse must be emitted
-    // ──────────────────────────────────────────────────────────────────────
-    let block_slack_rounds =
-        ((block_time / DRAND_PERIOD as f64).ceil() as u64).max(SUBTENSOR_PULSE_DELAY);
-
-    let slack_secs = block_slack_rounds as f64 * DRAND_PERIOD as f64;
-
     //----------------------------------------------------------------------
-    // 4 ▸ convert the desired timestamp into a DRAND round
+    // 3 ▸ convert the desired timestamp into a DRAND round
     //----------------------------------------------------------------------
     let now_secs = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_secs_f64();
 
-    let target_secs = now_secs + secs_until_ingest - slack_secs;
+    let target_secs = now_secs + secs_until_ingest;
 
     // Round ***down*** so we never request a not‑yet‑ingested pulse.
     let mut reveal_round =
