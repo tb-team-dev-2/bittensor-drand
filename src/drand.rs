@@ -216,7 +216,7 @@ pub fn generate_commit(
         .saturating_sub(netuid_plus_one);
 
     //----------------------------------------------------------------------
-    // 2 ▸ decide in which *block* we want the pulse to be ingested
+    // 2 ▸ decide in which *block* we want the pulse to be emitted
     //     – we aim for first_reveal_blk + 3
     //----------------------------------------------------------------------
     pub const SECURITY_BLOCK_OFFSET: u64 = 3;
