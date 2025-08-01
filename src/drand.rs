@@ -219,7 +219,8 @@ pub fn generate_commit(
     // 2 ▸ decide in which *block* we want the pulse to be ingested
     //     – we aim for first_reveal_blk + 3
     //----------------------------------------------------------------------
-    let target_ingest_blk = first_reveal_blk.saturating_add(3);
+    pub const SECURITY_BLOCK_OFFSET: u64 = 3;
+    let target_ingest_blk = first_reveal_blk.saturating_add(SECURITY_BLOCK_OFFSET);
     let blocks_until_ingest = target_ingest_blk.saturating_sub(current_block);
     let secs_until_ingest = blocks_until_ingest as f64 * block_time;
 
