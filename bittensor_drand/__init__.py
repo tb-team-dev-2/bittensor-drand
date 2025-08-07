@@ -31,7 +31,7 @@ def get_encrypted_commit(
         netuid: The network unique identifier (NetUID) for the subnet.
         subnet_reveal_period_epochs: Number of epochs after which the reveal will be performed. Corresponds to the hyperparameter `commit_reveal_weights_interval` of the subnet. In epochs.
         block_time: Amount of time in seconds for one block. Defaults to 12 seconds.
-        hotkey: The hotkey of the committing neuron is represented as bytes.
+        hotkey: The hotkey of a neuron-committer is represented as public_key bytes (wallet.hotkey.public_key).
 
     Returns:
         commit (bytes): Raw bytes of the encrypted and compressed uids & weights values for setting weights.
