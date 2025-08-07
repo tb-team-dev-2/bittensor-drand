@@ -1,7 +1,7 @@
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use codec::{Decode, Encode};
 
-use rand_core::OsRng;
+use rand_core::{OsRng, RngCore};
 use serde::Deserialize;
 use sha2::Digest;
 use std::os::raw::c_char;
@@ -14,7 +14,6 @@ use tle::{
 };
 use w3f_bls::EngineBLS;
 
-pub const SUBTENSOR_PULSE_DELAY: u64 = 24; //Drand rounds amount
 const PUBLIC_KEY: &str = "83cf0f2896adee7eb8b5f01fcad3912212c437e0073e911fb90022d3e760183c8c4b450b6a0a6c3ac6a5776a2d1064510d1fec758c921cc22b0e17e63aaf4bcb5ed66304de9cf809bd274ca73bab4af5a6e9c76a4bc09e76eae8991ef5ece45a";
 pub const GENESIS_TIME: u64 = 1692803367;
 pub const DRAND_PERIOD: u64 = 3;
@@ -34,6 +33,7 @@ const ENDPOINTS: [&str; 5] = [
 
 #[derive(Encode, Decode, Debug, PartialEq)]
 pub struct WeightsTlockPayload {
+    pub hotkey: Vec<u8>,
     pub uids: Vec<u16>,
     pub values: Vec<u16>,
     pub version_key: u64,
@@ -94,7 +94,8 @@ pub fn encrypt_and_compress(
     let identity = Identity::new(b"", vec![message]);
 
     // Encrypt payload
-    let esk = [2; 32];
+    let mut esk = [0u8; 32];
+    OsRng.fill_bytes(&mut esk);
     let ct = tle::<TinyBLS381, AESGCMStreamCipherProvider, OsRng>(
         pub_key,
         esk,
@@ -178,6 +179,7 @@ pub fn decrypt_and_decompress(
 /// * `netuid` - A u16 representing the network's unique identifier.
 /// * `subnet_reveal_period_epochs` - A u64 indicating the number of epochs before reveal.
 /// * `block_time` - Duration of each block in seconds as u64.
+/// * `hotkey` - The hotkey of the committing validator
 ///
 /// # Returns
 ///
@@ -194,49 +196,66 @@ pub fn generate_commit(
     netuid: u16,
     subnet_reveal_period_epochs: u64,
     block_time: f64,
+    hotkey: Vec<u8>,
 ) -> Result<(Vec<u8>, u64), (std::io::Error, String)> {
-    // Steps comes from here https://github.com/opentensor/subtensor/pull/982/files#diff-7261bf1c7f19fc66a74c1c644ec2b4b277a341609710132fb9cd5f622350a6f5R120-R131
+    //----------------------------------------------------------------------
+    // 1 ▸ derive the first block of the reveal epoch
+    //----------------------------------------------------------------------
+    let tempo_plus_one = tempo.saturating_add(1);
+    let netuid_plus_one = netuid as u64 + 1;
 
-    // Instantiate payload
-    let payload = WeightsTlockPayload {
-        uids,
-        values,
-        version_key,
-    };
-    let serialized_payload = payload.encode();
+    // epoch index of `current_block`
+    let current_epoch = (current_block + netuid_plus_one) / tempo_plus_one;
 
-    let now = SystemTime::now()
+    // epoch index in which the commit must be revealed
+    let reveal_epoch = current_epoch + subnet_reveal_period_epochs;
+
+    // very first block *inside* the reveal epoch
+    let first_reveal_blk = reveal_epoch
+        .saturating_mul(tempo_plus_one)
+        .saturating_sub(netuid_plus_one);
+
+    //----------------------------------------------------------------------
+    // 2 ▸ decide in which *block* we want the pulse to be emitted
+    //     – we aim for first_reveal_blk + 3
+    //----------------------------------------------------------------------
+    pub const SECURITY_BLOCK_OFFSET: u64 = 3;
+    let target_ingest_blk = first_reveal_blk.saturating_add(SECURITY_BLOCK_OFFSET);
+    let blocks_until_ingest = target_ingest_blk.saturating_sub(current_block);
+    let secs_until_ingest = blocks_until_ingest as f64 * block_time;
+
+    //----------------------------------------------------------------------
+    // 3 ▸ convert the desired timestamp into a DRAND round
+    //----------------------------------------------------------------------
+    let now_secs = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_secs_f64();
 
-    let tempo_plus_one = tempo + 1;
-    let netuid_plus_one = (netuid as u64) + 1;
-    let block_with_offset = current_block + netuid_plus_one;
-    let current_epoch = block_with_offset / tempo_plus_one;
+    let target_secs = now_secs + secs_until_ingest;
 
-    let mut reveal_epoch = current_epoch + subnet_reveal_period_epochs;
-    let mut reveal_block_number = reveal_epoch * tempo_plus_one - netuid_plus_one;
-    let mut blocks_until_reveal = reveal_block_number - current_block;
-    let mut time_until_reveal = (blocks_until_reveal as f64) * block_time;
+    // Round ***down*** so we never request a not‑yet‑ingested pulse.
+    let mut reveal_round =
+        ((target_secs - GENESIS_TIME as f64) / DRAND_PERIOD as f64).floor() as u64;
 
-    //
-    while time_until_reveal < (SUBTENSOR_PULSE_DELAY * DRAND_PERIOD) as f64 {
-        reveal_epoch += 1;
-        reveal_block_number = reveal_epoch * tempo_plus_one - netuid_plus_one;
-        blocks_until_reveal = reveal_block_number - current_block;
-        time_until_reveal = (blocks_until_reveal as f64) * block_time;
+    if reveal_round < 1 {
+        reveal_round = 1;
     }
 
-    let reveal_time = now + time_until_reveal;
-    let reveal_round = ((reveal_time - GENESIS_TIME as f64) / DRAND_PERIOD as f64).ceil() as u64
-        - SUBTENSOR_PULSE_DELAY;
+    //----------------------------------------------------------------------
+    // 5 ▸ build & encrypt payload
+    //----------------------------------------------------------------------
+    let payload = WeightsTlockPayload {
+        hotkey,
+        uids,
+        values,
+        version_key,
+    };
 
-    let ct_bytes = encrypt_and_compress(&serialized_payload, reveal_round)?;
+    let ct_bytes = encrypt_and_compress(&payload.encode(), reveal_round)?;
 
     Ok((ct_bytes, reveal_round))
 }
-
 /// Encrypts a string-based commitment using Drand timelock encryption for a future reveal round.
 ///
 /// This function encodes the input `data` and calculates the corresponding Drand round number
@@ -470,6 +489,7 @@ mod tests {
         let current_block = 1000;
         let netuid = 1;
         let reveal_epochs = 3;
+        let hotkey = vec![1, 2, 3];
 
         let (encrypted, reveal_round) = generate_commit(
             uids.clone(),
@@ -480,6 +500,7 @@ mod tests {
             netuid,
             reveal_epochs,
             12.0,
+            hotkey.clone(),
         )
         .expect("Commit generation failed");
 
@@ -499,6 +520,7 @@ mod tests {
             assert_eq!(payload.uids, uids);
             assert_eq!(payload.values, values);
             assert_eq!(payload.version_key, version_key);
+            assert_eq!(payload.hotkey, hotkey)
         }
     }
 }
