@@ -375,6 +375,8 @@ pub extern "C" fn cr_encrypt_commitment(
 /// * `netuid` - Network UID
 /// * `subnet_reveal_epochs` - Number of epochs to wait before revealing
 /// * `block_time` - Duration of a single block in seconds
+/// * `hotkey_ptr` - Pointer to a byte array representing the hotkey (Vec<u8>)
+/// * `hotkey_len` - Length of the hotkey byte array
 /// * `round_out` - Output parameter that will be set to the reveal round number
 /// * `err_out` - Output parameter that will be set to an error message on failure
 ///
@@ -401,13 +403,18 @@ pub extern "C" fn cr_generate_commit(
     netuid: u16,
     subnet_reveal_epochs: u64,
     block_time: f64,
+    hotkey_ptr: *const u8,
+    hotkey_len: usize,
     round_out: *mut u64,
     err_out: *mut *mut c_char,
 ) -> CRByteBuffer {
     unsafe { *err_out = ptr::null_mut() }
 
-    if (uids_ptr.is_null() && uids_len > 0) || (vals_ptr.is_null() && vals_len > 0) {
-        unsafe { *err_out = err_to_cstring("uids/values ptr is null") };
+    if (uids_ptr.is_null() && uids_len > 0)
+        || (vals_ptr.is_null() && vals_len > 0)
+        || (hotkey_ptr.is_null() && hotkey_len > 0)
+    {
+        unsafe { *err_out = err_to_cstring("uids/values/hotkey ptr is null") };
         return CRByteBuffer {
             ptr: ptr::null_mut(),
             len: 0,
@@ -426,6 +433,7 @@ pub extern "C" fn cr_generate_commit(
 
     let uids = unsafe { std::slice::from_raw_parts(uids_ptr, uids_len) }.to_vec();
     let values = unsafe { std::slice::from_raw_parts(vals_ptr, vals_len) }.to_vec();
+    let hotkey = unsafe { std::slice::from_raw_parts(hotkey_ptr, hotkey_len) }.to_vec();
 
     match drand::generate_commit(
         uids,
@@ -436,6 +444,7 @@ pub extern "C" fn cr_generate_commit(
         netuid,
         subnet_reveal_epochs,
         block_time,
+        hotkey,
     ) {
         Ok((ct, rr)) => {
             unsafe { *round_out = rr }
@@ -785,6 +794,7 @@ mod tests {
     fn test_generate_commit_success() {
         let uids: [u16; 3] = [1, 2, 3];
         let vals: [u16; 3] = [10, 20, 30];
+        let hotkey: [u8; 3] = [11, 22, 33];
 
         let mut round: u64 = 0;
         let mut err_ptr: *mut c_char = ptr::null_mut();
@@ -801,6 +811,8 @@ mod tests {
                 1,      // netuid
                 2,      // subnet_reveal_epochs
                 12.0,   // block_time
+                hotkey.as_ptr(),
+                hotkey.len(),
                 &mut round,
                 &mut err_ptr,
             )
@@ -819,6 +831,7 @@ mod tests {
     #[test]
     fn test_generate_commit_null_uids() {
         let vals: [u16; 2] = [1, 2];
+        let hotkey: [u8; 3] = [11, 22, 33];
         let mut round: u64 = 0;
         let mut err_ptr: *mut c_char = ptr::null_mut();
 
@@ -834,6 +847,8 @@ mod tests {
                 0,
                 0,
                 12.0,
+                hotkey.as_ptr(),
+                hotkey.len(),
                 &mut round,
                 &mut err_ptr,
             )
@@ -851,6 +866,7 @@ mod tests {
     fn test_generate_commit_mismatched_lengths() {
         let uids: [u16; 2] = [1, 2];
         let vals: [u16; 3] = [10, 20, 30];
+        let hotkey: [u8; 3] = [11, 22, 33];
         let mut round: u64 = 0;
         let mut err_ptr: *mut c_char = ptr::null_mut();
 
@@ -866,6 +882,8 @@ mod tests {
                 0,
                 0,
                 12.0,
+                hotkey.as_ptr(),
+                hotkey.len(),
                 &mut round,
                 &mut err_ptr,
             )

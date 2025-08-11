@@ -27,7 +27,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 ///         - the encrypted commitment (as bytes)
 ///         - the reveal round number (int) when it can be decrypted.
 #[pyfunction]
-#[pyo3(signature = (uids, weights, version_key, tempo, current_block, netuid, subnet_reveal_period_epochs, block_time=12.0))]
+#[pyo3(signature = (uids, weights, version_key, tempo, current_block, netuid, subnet_reveal_period_epochs, block_time, hotkey))]
 fn get_encrypted_commit(
     py: Python,
     uids: Vec<u16>,
@@ -38,6 +38,7 @@ fn get_encrypted_commit(
     netuid: u16,
     subnet_reveal_period_epochs: u64,
     block_time: f64,
+    hotkey: Vec<u8>,
 ) -> PyResult<(Py<PyBytes>, u64)> {
     // create runtime to make async call
     let result = drand::generate_commit(
@@ -49,6 +50,7 @@ fn get_encrypted_commit(
         netuid,
         subnet_reveal_period_epochs,
         block_time,
+        hotkey,
     );
     // matching the result
     match result {
